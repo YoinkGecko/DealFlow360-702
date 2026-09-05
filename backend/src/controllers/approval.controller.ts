@@ -20,7 +20,7 @@ export async function approveApproval(
      * Temporary:
      * pass approver ID through the request body.
      */
-    const approverId = req.body.approverId;
+    const approverId = req.user!.id;
 
     const result = await approveQuotation(approvalId, approverId, {
       reason: req.body.reason,
@@ -47,7 +47,7 @@ export async function rejectApproval(
       throw new Error("Approval ID is required");
     }
 
-    const approverId = req.body.approverId;
+    const approverId = req.user!.id;
 
     const result = await rejectQuotation(approvalId, approverId, {
       reason: req.body.reason,
