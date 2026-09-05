@@ -1,4 +1,4 @@
-import { pool } from "../config/pool.js";
+import type { PoolClient } from "pg";
 
 interface CreateQuotationData {
   quotationNumber: string;
@@ -13,8 +13,8 @@ interface CreateQuotationData {
   riskScore: number;
 }
 
-export async function createQuotation(data: CreateQuotationData) {
-  const result = await pool.query(
+export async function createQuotation(client: PoolClient,data: CreateQuotationData) {
+  const result = await client.query(
     `
     INSERT INTO quotations (
       quotation_number,
@@ -49,6 +49,7 @@ export async function createQuotation(data: CreateQuotationData) {
 }
 
 export async function createQuotationItem(
+  client: PoolClient,
   quotationId: string,
   data: {
     productId: string;
@@ -62,7 +63,7 @@ export async function createQuotationItem(
     lineMargin: number;
   },
 ) {
-  const result = await pool.query(
+  const result = await client.query(
     `
     INSERT INTO quotation_items (
       quotation_id,
@@ -97,12 +98,13 @@ export async function createQuotationItem(
 }
 
 export async function createApprovalRequest(
+  client: PoolClient,
   quotationId: string,
   level: "SALES_MANAGER" | "FINANCE",
   sequenceNo: number,
   reason: string,
 ) {
-  const result = await pool.query(
+  const result = await client.query(
     `
     INSERT INTO approval_requests (
       quotation_id,
