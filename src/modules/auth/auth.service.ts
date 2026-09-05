@@ -32,8 +32,8 @@ export async function signupUser(data: {
 
   try {
     await sendWelcomeEmail(user.email, user.name)
-  } catch {
-    // SMTP may fail in dev — don't block signup
+  } catch (err) {
+    console.warn('[email] Welcome email failed (signup still succeeded):', err)
   }
 
   return sanitizeUser(user)

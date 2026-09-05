@@ -11,6 +11,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod'
+import { initEmailTransport } from './core/email.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
 import { catalogRoutes } from './modules/catalog/catalog.routes.js'
 import { policyRoutes } from './modules/policy/policy.routes.js'
@@ -88,6 +89,7 @@ async function buildServer() {
 }
 
 async function main() {
+  await initEmailTransport()
   const app = await buildServer()
   await app.listen({ port: PORT, host: HOST })
   app.log.info(`Swagger UI: http://localhost:${PORT}/docs`)

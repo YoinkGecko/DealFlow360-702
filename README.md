@@ -59,9 +59,17 @@ npm test
 
 Unit tests cover `computeBlendedRisk` including the Gold Hardware/Service blended scenario.
 
-## SMTP
+## Email (Nodemailer)
 
-Email uses hardcoded defaults in `.env` (see `SMTP_*`). Welcome email fires on signup; failures are non-blocking in dev.
+No Gmail required for local development. Uses **Nodemailer** with `EMAIL_TRANSPORT`:
+
+| Value | Behavior |
+|-------|----------|
+| `console` (default) | Prints emails in the API server terminal |
+| `ethereal` | Free test inbox — preview URL logged after each send |
+| `smtp` | Real SMTP — set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` in `.env` |
+
+Welcome email runs on signup. Failures are non-blocking in dev.
 
 ## Architecture notes
 
