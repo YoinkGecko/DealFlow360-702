@@ -2,6 +2,11 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 
+import { requestLogger } from "./middleware/requestLogger.middleware.js";
+import { notFoundMiddleware } from "./middleware/notFound.middleware.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
+import { rateLimiter } from "./middleware/rateLimit.middleware.js";
+
 export const app = express();
 
 app.use(
@@ -12,6 +17,8 @@ app.use(
 
 app.use(helmet());
 app.use(express.json());
+app.use(requestLogger);
+app.use(rateLimiter);
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -19,3 +26,7 @@ app.get("/api/health", (_req, res) => {
     message: "Server is running",
   });
 });
+
+
+app.use(notFoundMiddleware);
+app.use(errorMiddleware);
