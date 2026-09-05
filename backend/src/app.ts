@@ -8,6 +8,7 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 import { rateLimiter } from "./middleware/rateLimit.middleware.js";
 
 import quotationRoutes from "./routes/quotation.routes.js";
+import approvalRoutes from "./routes/approval.routes.js";
 
 export const app = express();
 
@@ -30,6 +31,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/quotations", quotationRoutes);
+app.use("/api/approvals", approvalRoutes);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
