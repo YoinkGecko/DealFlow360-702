@@ -1,7 +1,20 @@
 import { randomUUID } from 'node:crypto'
+import type { QuoteStatus } from '@prisma/client'
 import { prisma } from '../../db/client.js'
 import { appendEvent } from '../../core/event-store.js'
 import { allocateLine } from './allocator.js'
+
+/** Quotes that have passed approval and can be allocated (incl. after customer confirm). */
+const FULFILLMENT_ELIGIBLE_STATUSES: QuoteStatus[] = [
+  'APPROVED',
+  'SENT',
+  'UNDER_NEGOTIATION',
+  'CONFIRMED',
+]
+
+function canAllocateFulfillment(status: QuoteStatus): boolean {
+  return FULFILLMENT_ELIGIBLE_STATUSES.includes(status)
+}
 
 type StockKey = string
 
@@ -52,9 +65,11 @@ export async function allocateQuoteFulfillment(
     throw Object.assign(new Error('Quote not found'), { statusCode: 404 })
   }
 
-  if (!options?.skipStatusCheck && quote.status !== 'APPROVED') {
+  if (!options?.skipStatusCheck && !canAllocateFulfillment(quote.status)) {
     throw Object.assign(
-      new Error('Fulfillment allocation is only allowed for APPROVED quotes'),
+      new Error(
+        'Fulfillment allocation is only allowed after the quote is approved (APPROVED, SENT, or CONFIRMED)',
+      ),
       { statusCode: 400 },
     )
   }
