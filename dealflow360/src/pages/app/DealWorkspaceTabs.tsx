@@ -5,6 +5,7 @@ import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Table, Th, Td, Tr } from '../../components/ui/Table'
 import { Modal } from '../../components/ui/Modal'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { Pagination } from '../../components/ui/Pagination'
 import { QuoteRiskPanel } from '../../components/business/QuoteRiskPanel'
 import { ApiError } from '../../lib/api'
@@ -40,6 +41,8 @@ interface Props {
   quote: ApiQuote
   savingLine: string | null
   actionLoading: boolean
+  pendingChangeCount: number
+  onGoToChanges: () => void
   onQuoteUpdated: () => void
   onSavingLine: (id: string | null) => void
   onActionLoading: (v: boolean) => void
@@ -51,6 +54,8 @@ export function DealWorkspaceTabs({
   quote,
   savingLine,
   actionLoading,
+  pendingChangeCount,
+  onGoToChanges,
   onQuoteUpdated,
   onSavingLine,
   onActionLoading,
@@ -62,6 +67,8 @@ export function DealWorkspaceTabs({
         quote={quote}
         savingLine={savingLine}
         actionLoading={actionLoading}
+        pendingChangeCount={pendingChangeCount}
+        onGoToChanges={onGoToChanges}
         onQuoteUpdated={onQuoteUpdated}
         onSavingLine={onSavingLine}
         onActionLoading={onActionLoading}
@@ -97,6 +104,8 @@ function QuoteTab({
   quote,
   savingLine,
   actionLoading,
+  pendingChangeCount,
+  onGoToChanges,
   onQuoteUpdated,
   onSavingLine,
   onActionLoading,
@@ -241,6 +250,22 @@ function QuoteTab({
         )}
       </div>
 
+      {pendingChangeCount > 0 && (
+        <Card className="border-[var(--color-warning)] bg-[var(--color-warning-bg)]/40">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                {pendingChangeCount} customer change request{pendingChangeCount > 1 ? 's' : ''} awaiting your response
+              </p>
+              <p className="text-xs text-[var(--color-muted)] mt-1">
+                The customer cannot confirm this quotation until you accept or reject each request.
+              </p>
+            </div>
+            <Button size="sm" onClick={onGoToChanges}>Review change requests</Button>
+          </div>
+        </Card>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <Card>
@@ -261,13 +286,14 @@ function QuoteTab({
                       <td className="py-2 font-medium">{line.product?.name ?? '—'}</td>
                       <td className="py-2 text-right">
                         {isDraft ? (
-                          <input
-                            type="number"
+                          <NumericInput
+                            integer
                             min={1}
-                            defaultValue={line.quantity}
+                            emptyValue={1}
+                            commitOnBlurOnly
+                            value={line.quantity}
                             disabled={savingLine === line.id}
-                            onBlur={async (e) => {
-                              const val = Number(e.target.value)
+                            onChange={async (val) => {
                               if (val === line.quantity || val < 1) return
                               onSavingLine(line.id)
                               try {
@@ -288,14 +314,14 @@ function QuoteTab({
                       <td className="py-2 text-right">{formatCurrency(line.unitPrice)}</td>
                       <td className="py-2 text-right">
                         {isDraft ? (
-                          <input
-                            type="number"
+                          <NumericInput
                             min={0}
                             max={100}
-                            defaultValue={line.discountPercent}
+                            emptyValue={0}
+                            commitOnBlurOnly
+                            value={line.discountPercent}
                             disabled={savingLine === line.id}
-                            onBlur={async (e) => {
-                              const val = Number(e.target.value)
+                            onChange={async (val) => {
                               if (val === line.discountPercent) return
                               onSavingLine(line.id)
                               try {
@@ -387,23 +413,24 @@ function QuoteTab({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium">Quantity</label>
-              <input
-                type="number"
+              <NumericInput
+                integer
                 min={1}
+                emptyValue={1}
                 className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
                 value={addForm.quantity}
-                onChange={(e) => setAddForm((f) => ({ ...f, quantity: Number(e.target.value) }))}
+                onChange={(val) => setAddForm((f) => ({ ...f, quantity: val }))}
               />
             </div>
             <div>
               <label className="text-xs font-medium">Discount %</label>
-              <input
-                type="number"
+              <NumericInput
                 min={0}
                 max={100}
+                emptyValue={0}
                 className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
                 value={addForm.discountPercent}
-                onChange={(e) => setAddForm((f) => ({ ...f, discountPercent: Number(e.target.value) }))}
+                onChange={(val) => setAddForm((f) => ({ ...f, discountPercent: val }))}
               />
             </div>
           </div>
@@ -571,12 +598,13 @@ function BillingTab({
               value={planId}
               onChange={(e) => setPlanId(e.target.value)}
             />
-            <input
-              type="number"
+            <NumericInput
+              integer
               min={1}
+              emptyValue={1}
               className="px-3 py-2 border rounded-md"
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={setQuantity}
             />
             <Button size="sm" onClick={attach}>Attach</Button>
           </div>
@@ -587,12 +615,13 @@ function BillingTab({
               value={subId}
               onChange={(e) => setSubId(e.target.value)}
             />
-            <input
-              type="number"
+            <NumericInput
+              integer
               min={1}
+              emptyValue={1}
               className="px-3 py-2 border rounded-md"
               value={newQty}
-              onChange={(e) => setNewQty(Number(e.target.value))}
+              onChange={setNewQty}
             />
             <Button size="sm" variant="secondary" onClick={changeQty}>Apply Qty Change</Button>
           </div>
@@ -746,11 +775,10 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
           </div>
           <div>
             <label className="text-xs text-[var(--color-muted)]">Hypothetical ceiling %</label>
-            <input
-              type="number"
+            <NumericInput
               className="w-full px-3 py-2 border rounded text-sm mt-1"
               value={ceiling}
-              onChange={(e) => setCeiling(Number(e.target.value))}
+              onChange={setCeiling}
             />
           </div>
         </div>
@@ -829,7 +857,14 @@ function ChangeRequestsTab({
   if (loading) return <p className="text-sm text-[var(--color-muted)]">Loading change requests…</p>
 
   return (
-    <Card padding={false}>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader
+          title="Customer change requests"
+          subtitle="Review portal submissions from the customer. Accept to apply changes (e.g. discount updates) or reject to keep the current quote. The customer can only confirm once all requests are resolved."
+        />
+      </Card>
+      <Card padding={false}>
       <Table>
         <thead>
           <tr><Th>Type</Th><Th>Message</Th><Th>Proposed %</Th><Th>Status</Th><Th></Th></tr>
@@ -858,5 +893,6 @@ function ChangeRequestsTab({
         </tbody>
       </Table>
     </Card>
+    </div>
   )
 }

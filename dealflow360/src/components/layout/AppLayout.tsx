@@ -273,7 +273,8 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                       markNotificationRead(n.id)
                       if (n.quoteId) {
                         setShowNotifs(false)
-                        navigate(`/app/deals/${n.quoteId}`)
+                        const tab = /submitted a|change request/i.test(n.message) ? 'changes' : 'quote'
+                        navigate(`/app/deals/${n.quoteId}${tab === 'quote' ? '' : `?tab=${tab}`}`)
                       }
                     }}
                   >

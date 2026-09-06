@@ -32,6 +32,7 @@ import { Pagination } from '../../components/ui/Pagination'
 import { Can } from '../../components/ui/Can'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
+import { NumericInput } from '../../components/ui/NumericInput'
 import type { ApiApproval, ApiChangeRequest, ApiCustomer, ApiProduct, ApiQuote } from '../../lib/types'
 import { DEFAULT_POLICY } from '../../lib/risk'
 import { formatCurrency, timeAgo } from '../../lib/utils'
@@ -290,7 +291,12 @@ export function ApprovalsPage() {
                 </div>
               )}
             </div>
-            <Link to={`/app/deals/${deal.id}`} className="text-sm text-[var(--color-brand)]">Open full deal workspace →</Link>
+            <Link
+              to={`/app/deals/${deal.id}${pendingCrs.length > 0 ? '?tab=changes' : ''}`}
+              className="text-sm text-[var(--color-brand)]"
+            >
+              {pendingCrs.length > 0 ? 'Review change requests in deal workspace →' : 'Open full deal workspace →'}
+            </Link>
           </div>
         )}
       </Drawer>
@@ -575,20 +581,18 @@ export function PoliciesPage() {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium">Manager Threshold (%)</label>
-            <input
-              type="number"
+            <NumericInput
               value={managerThreshold}
-              onChange={(e) => setManagerThreshold(Number(e.target.value))}
+              onChange={setManagerThreshold}
               className="mt-1 w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm"
             />
             <p className="text-xs text-[var(--color-muted)] mt-1">Blended risk above this routes to Sales Manager</p>
           </div>
           <div>
             <label className="text-sm font-medium">Finance Threshold (%)</label>
-            <input
-              type="number"
+            <NumericInput
               value={financeThreshold}
-              onChange={(e) => setFinanceThreshold(Number(e.target.value))}
+              onChange={setFinanceThreshold}
               className="mt-1 w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm"
             />
             <p className="text-xs text-[var(--color-muted)] mt-1">Above this requires Manager + Finance</p>

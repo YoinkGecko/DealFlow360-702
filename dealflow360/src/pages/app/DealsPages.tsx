@@ -11,7 +11,7 @@ import { DealWorkspaceTabs } from './DealWorkspaceTabs'
 import { useApp } from '../../context/AppContext'
 import { ApiError } from '../../lib/api'
 import { avgDiscount, riskLevelFromScore, shortQuoteId, stageIndexFromStatus, STATUS_TABS, formatQuoteStatus, quoteTotal } from '../../lib/quote-utils'
-import { createQuote, fetchCustomers, fetchQuote, fetchQuotes } from '../../lib/quotes-api'
+import { createQuote, fetchChangeRequests, fetchCustomers, fetchQuote, fetchQuotes } from '../../lib/quotes-api'
 import type { ApiCustomer, ApiQuote } from '../../lib/types'
 import { canCreateQuote } from '../../lib/roles'
 import { Can } from '../../components/ui/Can'
@@ -215,6 +215,15 @@ export function DealsPage() {
 
 const WORKSPACE_TABS = ['quote', 'fulfillment', 'billing', 'audit', 'what-if', 'changes'] as const
 
+const WORKSPACE_TAB_LABELS: Record<typeof WORKSPACE_TABS[number], string> = {
+  quote: 'Quote',
+  fulfillment: 'Fulfillment',
+  billing: 'Billing',
+  audit: 'Audit',
+  'what-if': 'What-if',
+  changes: 'Change Requests',
+}
+
 export function DealWorkspacePage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -225,8 +234,18 @@ export function DealWorkspacePage() {
   const [error, setError] = useState('')
   const [savingLine, setSavingLine] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [pendingChangeCount, setPendingChangeCount] = useState(0)
 
   const activeTab = (searchParams.get('tab') as typeof WORKSPACE_TABS[number]) || 'quote'
+
+  const loadPendingChanges = useCallback(async (quoteId: string) => {
+    try {
+      const { changeRequests } = await fetchChangeRequests(quoteId)
+      setPendingChangeCount(changeRequests.filter((r) => r.status === 'PENDING').length)
+    } catch {
+      setPendingChangeCount(0)
+    }
+  }, [])
 
   const loadQuote = useCallback(async () => {
     if (!id) return
@@ -235,13 +254,15 @@ export function DealWorkspacePage() {
     try {
       const data = await fetchQuote(id)
       setQuote(data)
+      await loadPendingChanges(data.id)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load deal')
       setQuote(null)
+      setPendingChangeCount(0)
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, loadPendingChanges])
 
   useEffect(() => {
     loadQuote()
@@ -291,7 +312,14 @@ export function DealWorkspacePage() {
                 : 'text-[var(--color-muted)]'
             }`}
           >
-            {t.replace('-', ' ')}
+            <span className="inline-flex items-center gap-1.5">
+              {WORKSPACE_TAB_LABELS[t]}
+              {t === 'changes' && pendingChangeCount > 0 && (
+                <span className="min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-[var(--color-danger)] text-[var(--color-on-brand)] text-[10px] font-semibold flex items-center justify-center">
+                  {pendingChangeCount}
+                </span>
+              )}
+            </span>
           </button>
         ))}
       </div>
@@ -301,6 +329,8 @@ export function DealWorkspacePage() {
         quote={quote}
         savingLine={savingLine}
         actionLoading={actionLoading}
+        pendingChangeCount={pendingChangeCount}
+        onGoToChanges={() => setTab('changes')}
         onQuoteUpdated={loadQuote}
         onSavingLine={setSavingLine}
         onActionLoading={setActionLoading}
