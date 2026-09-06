@@ -265,7 +265,7 @@ export async function submitQuoteForApproval(quoteId: string, actorUserId: strin
     throw Object.assign(new Error('Cannot submit quote with no lines'), { statusCode: 400 })
   }
 
-  const blendedRisk = quote.blendedRiskScore ?? 0
+  const blendedRisk = (await recomputeAndPersistRisk(quoteId, actorUserId)) ?? 0
   const result = await applyApprovalRouting(quoteId, blendedRisk, actorUserId, {
     approvalEventType: 'ApprovalRequested',
   })
@@ -345,6 +345,16 @@ export async function decideApproval(
     await prisma.quote.update({
       where: { id: quoteId },
       data: { status: 'APPROVED' },
+    })
+    await appendEvent({
+      aggregateId: quoteId,
+      aggregateType: 'Quote',
+      type: 'QuoteApproved',
+      payload: {
+        approvedAt: new Date().toISOString(),
+        finalApproverRole: approval.approverRole,
+      },
+      actorUserId: actor.userId,
     })
     return { approval: updatedApproval, quoteStatus: 'APPROVED' as QuoteStatus }
   }

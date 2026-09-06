@@ -268,6 +268,24 @@ export function DealWorkspacePage() {
     loadQuote()
   }, [loadQuote])
 
+  // Re-fetch when customer acts on the portal (confirm, change request) while rep has deal open
+  useEffect(() => {
+    if (!quote) return
+    const shouldPoll =
+      quote.status === 'SENT' ||
+      quote.status === 'UNDER_NEGOTIATION' ||
+      quote.status === 'PENDING_APPROVAL'
+    if (!shouldPoll) return
+
+    const onFocus = () => void loadQuote()
+    window.addEventListener('focus', onFocus)
+    const interval = setInterval(() => void loadQuote(), 15_000)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      clearInterval(interval)
+    }
+  }, [quote?.id, quote?.status, loadQuote])
+
   const setTab = (tab: string) => {
     setSearchParams(tab === 'quote' ? {} : { tab })
   }

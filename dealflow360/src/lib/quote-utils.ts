@@ -36,15 +36,19 @@ export const STATUS_TABS: Array<{ key: string; status?: QuoteStatus }> = [
   { key: 'REJECTED', status: 'REJECTED' },
 ]
 
+/**
+ * Maps quote status to the lifecycle stepper index.
+ * Steps: Draft → Risk Review → Approval → Fulfillment → Billing → Paid
+ */
 export function stageIndexFromStatus(status: QuoteStatus): number {
   const map: Record<QuoteStatus, number> = {
     DRAFT: 0,
-    SENT: 1,
-    UNDER_NEGOTIATION: 1,
     PENDING_APPROVAL: 2,
-    APPROVED: 3,
     REJECTED: 2,
-    CONFIRMED: 5,
+    APPROVED: 3,
+    SENT: 3,
+    UNDER_NEGOTIATION: 3,
+    CONFIRMED: 4,
   }
   return map[status] ?? 0
 }

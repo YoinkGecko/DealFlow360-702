@@ -250,6 +250,17 @@ function QuoteTab({
         )}
       </div>
 
+      {quote.status === 'CONFIRMED' && (
+        <Card className="border-[var(--color-success)] bg-[var(--color-success-bg)]/40 mb-4">
+          <p className="text-sm font-medium text-[var(--color-text)]">
+            Customer confirmed this quotation
+          </p>
+          <p className="text-xs text-[var(--color-muted)] mt-1">
+            Proceed with fulfillment and billing using the tabs below. The lifecycle stepper advances to Billing once confirmed.
+          </p>
+        </Card>
+      )}
+
       {pendingChangeCount > 0 && (
         <Card className="border-[var(--color-warning)] bg-[var(--color-warning-bg)]/40">
           <div className="flex flex-wrap items-center justify-between gap-3">

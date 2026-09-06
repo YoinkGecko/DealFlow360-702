@@ -153,12 +153,23 @@ export function PortalQuotePage() {
           </div>
 
           <div className="flex items-center gap-4 p-3 bg-[var(--color-bg)] rounded-md text-sm mb-4">
-            <span className="text-[var(--color-muted)]">Pricing review:</span>
-            <span className={`font-medium ${
-              riskLevel === 'high' ? 'text-[var(--color-danger)]' : riskLevel === 'medium' ? 'text-[var(--color-warning)]' : 'text-[var(--color-success)]'
-            }`}>
-              {riskLevel === 'high' ? 'Needs review' : riskLevel === 'medium' ? 'Standard terms' : 'Within guidelines'}
-            </span>
+            {quote.status === 'CONFIRMED' ? (
+              <>
+                <span className="text-[var(--color-muted)]">Status:</span>
+                <span className="font-medium text-[var(--color-success)]">
+                  You confirmed this quotation — your sales rep will proceed with fulfillment and billing.
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-[var(--color-muted)]">Pricing review:</span>
+                <span className={`font-medium ${
+                  riskLevel === 'high' ? 'text-[var(--color-danger)]' : riskLevel === 'medium' ? 'text-[var(--color-warning)]' : 'text-[var(--color-success)]'
+                }`}>
+                  {riskLevel === 'high' ? 'Needs review' : riskLevel === 'medium' ? 'Standard terms' : 'Within guidelines'}
+                </span>
+              </>
+            )}
           </div>
 
           <table className="w-full text-sm">
