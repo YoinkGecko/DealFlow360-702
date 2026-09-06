@@ -3,13 +3,13 @@ import { cn } from '../../lib/utils'
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'
 
 const styles: Record<BadgeVariant, string> = {
-  default: 'bg-[#f5f6f8] text-[#1a1d21] border-[#e8eaed]',
-  success: 'bg-[#e8f5e9] text-[#2e7d32] border-[#c8e6c9]',
-  warning: 'bg-[#fff4e5] text-[#ed6c02] border-[#ffe0b2]',
-  danger: 'bg-[#ffebee] text-[#c62828] border-[#ffcdd2]',
-  info: 'bg-[#e3f2fd] text-[#1565C0] border-[#bbdefb]',
-  neutral: 'bg-[#f5f6f8] text-[#6b7280] border-[#e8eaed]',
-  purple: 'bg-[#f3e5f5] text-[#7b1fa2] border-[#e1bee7]',
+  default: 'bg-[var(--color-bg)] text-[var(--color-text)] border-[var(--color-border)]',
+  success: 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/30',
+  warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning)]/30',
+  danger: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)] border-[var(--color-danger)]/30',
+  info: 'bg-[var(--color-info-bg)] text-[var(--color-info)] border-[var(--color-brand)]/30',
+  neutral: 'bg-[var(--color-bg)] text-[var(--color-muted)] border-[var(--color-border)]',
+  purple: 'bg-[var(--color-badge-finance-bg)] text-[var(--color-badge-finance-text)] border-[var(--color-badge-finance-text)]/30',
 }
 
 export function Badge({

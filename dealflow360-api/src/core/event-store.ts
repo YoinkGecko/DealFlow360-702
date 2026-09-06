@@ -31,3 +31,18 @@ export async function getEventsForAggregate(aggregateId: string) {
     orderBy: { createdAt: 'asc' },
   })
 }
+
+export async function listEventsForAggregate(
+  aggregateId: string,
+  page = 1,
+  limit = 20,
+) {
+  const { paginateParams, paginatedResult } = await import('./pagination.js')
+  const { skip, take, page: p, limit: l } = paginateParams(page, limit)
+  const where = { aggregateId }
+  const [events, total] = await Promise.all([
+    prisma.event.findMany({ where, orderBy: { createdAt: 'asc' }, skip, take }),
+    prisma.event.count({ where }),
+  ])
+  return paginatedResult(events, total, p, l)
+}

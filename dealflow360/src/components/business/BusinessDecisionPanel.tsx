@@ -9,13 +9,13 @@ export function BusinessDecisionPanel({ risk }: { risk: RiskResult }) {
   const overLines = risk.breakdown.filter((b) => b.status === 'over')
 
   return (
-    <Card className="border-[#1565C0]/30 bg-[#fafbfc]">
+    <Card className="border-[var(--color-brand)]/30 bg-[var(--color-table-header-bg)]">
       <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-md bg-[#e3f2fd] flex items-center justify-center">
-          <Cpu className="w-4 h-4 text-[#1565C0]" />
+        <div className="w-8 h-8 rounded-md bg-[var(--color-brand-light)] flex items-center justify-center">
+          <Cpu className="w-4 h-4 text-[var(--color-brand)]" />
         </div>
         <div>
-          <p className="text-xs font-medium text-[#6b7280] uppercase tracking-wide">Business Decision</p>
+          <p className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">Business Decision</p>
           <p className="text-sm font-semibold">Automated Policy Evaluation</p>
         </div>
         <Badge variant="purple" className="ml-auto">System</Badge>
@@ -23,8 +23,8 @@ export function BusinessDecisionPanel({ risk }: { risk: RiskResult }) {
 
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-xs text-[#6b7280] mb-1">Discount Risk</p>
-          <p className="text-3xl font-bold text-[#1a1d21]">{formatPercent(risk.blendedRisk)}</p>
+          <p className="text-xs text-[var(--color-muted)] mb-1">Discount Risk</p>
+          <p className="text-3xl font-bold text-[var(--color-text)]">{formatPercent(risk.blendedRisk)}</p>
         </div>
         <div className="flex flex-col items-end justify-center">
           <RiskBadge level={risk.level === 'none' ? 'low' : risk.level} />
@@ -32,18 +32,18 @@ export function BusinessDecisionPanel({ risk }: { risk: RiskResult }) {
       </div>
 
       {overLines.length > 0 && (
-        <div className="mb-4 p-3 bg-white rounded-md border border-[#e8eaed]">
-          <p className="text-xs font-medium text-[#6b7280] mb-2">Why this was flagged</p>
-          <p className="text-sm text-[#1a1d21] mb-3">
+        <div className="mb-4 p-3 bg-[var(--color-surface)] rounded-md border border-[var(--color-border)]">
+          <p className="text-xs font-medium text-[var(--color-muted)] mb-2">Why this was flagged</p>
+          <p className="text-sm text-[var(--color-text)] mb-3">
             {overLines.length} product categor{overLines.length > 1 ? 'ies' : 'y'} exceed configured discount ceilings.
           </p>
           <div className="space-y-2">
             {overLines.map((line) => (
-              <div key={line.productName} className="flex justify-between text-sm border-t border-[#e8eaed] pt-2 first:border-0 first:pt-0">
+              <div key={line.productName} className="flex justify-between text-sm border-t border-[var(--color-border)] pt-2 first:border-0 first:pt-0">
                 <span className="font-medium">{line.category}</span>
-                <span className="text-[#6b7280]">
+                <span className="text-[var(--color-muted)]">
                   Given {line.given}% · Allowed {line.allowed}% ·{' '}
-                  <span className="text-[#c62828] font-medium">+{line.overagePct.toFixed(1)}%</span>
+                  <span className="text-[var(--color-danger)] font-medium">+{line.overagePct.toFixed(1)}%</span>
                 </span>
               </div>
             ))}
@@ -52,25 +52,25 @@ export function BusinessDecisionPanel({ risk }: { risk: RiskResult }) {
       )}
 
       <div className="space-y-3 text-sm">
-        <div className="flex justify-between py-2 border-t border-[#e8eaed]">
-          <span className="text-[#6b7280]">Order-level weighted risk</span>
+        <div className="flex justify-between py-2 border-t border-[var(--color-border)]">
+          <span className="text-[var(--color-muted)]">Order-level weighted risk</span>
           <span className="font-semibold">{formatPercent(risk.blendedRisk)}</span>
         </div>
-        <div className="p-3 rounded-md bg-white border border-[#e8eaed]">
-          <p className="text-xs text-[#6b7280]">Decision</p>
+        <div className="p-3 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-muted)]">Decision</p>
           <p className="font-medium mt-0.5">{risk.decision}</p>
         </div>
         {risk.approvalChain.length > 0 && (
           <div>
-            <p className="text-xs text-[#6b7280] mb-2">Next steps</p>
+            <p className="text-xs text-[var(--color-muted)] mb-2">Next steps</p>
             <div className="flex items-center gap-1 flex-wrap">
               {risk.approvalChain.map((step, i) => (
                 <span key={step} className="flex items-center gap-1">
-                  <span className={cn('px-2 py-1 rounded text-xs font-medium bg-[#e3f2fd] text-[#1565C0]')}>
+                  <span className={cn('px-2 py-1 rounded text-xs font-medium bg-[var(--color-brand-light)] text-[var(--color-brand)]')}>
                     {step}
                   </span>
                   {i < risk.approvalChain.length - 1 && (
-                    <span className="text-[#6b7280]">→</span>
+                    <span className="text-[var(--color-muted)]">→</span>
                   )}
                 </span>
               ))}
@@ -94,7 +94,7 @@ export function ExplainBlock({
   next: string
 }) {
   return (
-    <div className="text-sm space-y-2 p-3 bg-[#fafbfc] rounded-md border border-[#e8eaed]">
+    <div className="text-sm space-y-2 p-3 bg-[var(--color-table-header-bg)] rounded-md border border-[var(--color-border)]">
       <Row label="What" value={what} />
       <Row label="Why" value={why} />
       <Row label="Rule" value={rule} />
@@ -106,8 +106,8 @@ export function ExplainBlock({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2">
-      <span className="text-[#6b7280] w-12 shrink-0 font-medium">{label}</span>
-      <span className="text-[#1a1d21]">{value}</span>
+      <span className="text-[var(--color-muted)] w-12 shrink-0 font-medium">{label}</span>
+      <span className="text-[var(--color-text)]">{value}</span>
     </div>
   )
 }
@@ -121,15 +121,15 @@ export function LifecycleStepper({ current }: { current: number }) {
           <div
             className={cn(
               'px-3 py-1.5 rounded text-xs font-medium border',
-              i < current && 'bg-[#e8f5e9] text-[#2e7d32] border-[#c8e6c9]',
-              i === current && 'bg-[#1565C0] text-white border-[#1565C0]',
-              i > current && 'bg-white text-[#6b7280] border-[#e8eaed]',
+              i < current && 'bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/30',
+              i === current && 'bg-[var(--color-brand)] text-[var(--color-on-brand)] border-[var(--color-brand)]',
+              i > current && 'bg-[var(--color-surface)] text-[var(--color-muted)] border-[var(--color-border)]',
             )}
           >
             {step}
           </div>
           {i < steps.length - 1 && (
-            <span className="mx-1 text-[#c5c9d0]">→</span>
+            <span className="mx-1 text-[var(--color-muted)]">→</span>
           )}
         </div>
       ))}

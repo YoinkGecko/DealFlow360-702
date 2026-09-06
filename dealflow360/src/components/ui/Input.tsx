@@ -12,18 +12,20 @@ export function Input({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-[#1a1d21]">{label}</label>
+        <label className="block text-sm font-medium text-[var(--color-text)]">{label}</label>
       )}
       <input
         className={cn(
-          'w-full px-3 py-2 text-sm border rounded-md bg-white transition-colors',
-          'border-[#e8eaed] focus:outline-none focus:ring-2 focus:ring-[#1565C0]/20 focus:border-[#1565C0]',
-          error && 'border-[#c62828] focus:ring-[#c62828]/20 focus:border-[#c62828]',
+          'w-full px-3 py-2 text-sm border rounded-md transition-colors',
+          'bg-[var(--color-input-bg)] text-[var(--color-input-text)] border-[var(--color-input-border)]',
+          'placeholder:text-[var(--color-input-placeholder)]',
+          'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/25 focus:border-[var(--color-brand)]',
+          error && 'border-[var(--color-danger)] focus:ring-[var(--color-danger)]/25 focus:border-[var(--color-danger)]',
           className,
         )}
         {...props}
       />
-      {error && <p className="text-xs text-[#c62828]">{error}</p>}
+      {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
     </div>
   )
 }
@@ -40,12 +42,13 @@ export function Select({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-[#1a1d21]">{label}</label>
+        <label className="block text-sm font-medium text-[var(--color-text)]">{label}</label>
       )}
       <select
         className={cn(
-          'w-full px-3 py-2 text-sm border rounded-md bg-white border-[#e8eaed]',
-          'focus:outline-none focus:ring-2 focus:ring-[#1565C0]/20 focus:border-[#1565C0]',
+          'w-full px-3 py-2 text-sm border rounded-md',
+          'bg-[var(--color-input-bg)] text-[var(--color-input-text)] border-[var(--color-input-border)]',
+          'focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/25 focus:border-[var(--color-brand)]',
           className,
         )}
         {...props}
@@ -63,10 +66,10 @@ export function Checkbox({
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
-    <label className="flex items-start gap-2 text-sm text-[#6b7280] cursor-pointer">
+    <label className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)] cursor-pointer">
       <input
         type="checkbox"
-        className="mt-0.5 rounded border-[#e8eaed] text-[#1565C0] focus:ring-[#1565C0]"
+        className="mt-0.5 rounded border-[var(--color-input-border)] text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
         {...props}
       />
       {label}

@@ -4,6 +4,8 @@ import { z } from 'zod'
 import {
   createProductBodySchema,
   errorSchema,
+  paginationQuerySchema,
+  paginatedMetaSchema,
   productIdParamSchema,
   productSchema,
 } from '../../core/schemas.js'
@@ -21,14 +23,18 @@ export async function catalogRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Catalog'],
         security: [{ bearerAuth: [] }],
+        querystring: paginationQuerySchema,
         response: {
-          200: z.array(productSchema),
+          200: z.object({
+            items: z.array(productSchema),
+            ...paginatedMetaSchema.shape,
+          }),
         },
       },
     },
-    async () => {
-      const products = await catalogService.listProducts()
-      return products.map(serializeProduct)
+    async (request) => {
+      const result = await catalogService.listProducts(request.query)
+      return { ...result, items: result.items.map(serializeProduct) }
     },
   )
 

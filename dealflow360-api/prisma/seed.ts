@@ -1,11 +1,25 @@
 import { PrismaClient, UserRole } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { randomUUID } from 'node:crypto'
 import { recomputeCoOccurrenceFromHistory } from '../src/modules/recs/recs.service.js'
 import { backfillAllConfirmedQuoteTransitions } from './seed-stage-transitions-helper.js'
+import {
+  computeAndPersistQuoteRisk,
+  seedDecidedApprovals,
+  seedPendingApprovalsForQuote,
+  seedPortalSession,
+} from './seed-helpers.js'
+import { allocateQuoteFulfillment } from '../src/modules/fulfillment/fulfillment.service.js'
+import {
+  addSubscriptionToQuote,
+  changeSubscriptionQuantity,
+} from '../src/modules/billing/billing.service.js'
+import { appendEvent } from '../src/core/event-store.js'
 
 const prisma = new PrismaClient()
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
+const MS_PER_HOUR = 60 * 60 * 1000
 
 async function main() {
   console.log('Seeding DealFlow360 database...')
@@ -269,6 +283,7 @@ async function main() {
   ]
 
   let orderIndex = 0
+  const confirmedQuoteIds: string[] = []
   for (const lines of historicalOrders) {
     const createdAt = new Date(Date.now() - (30 - orderIndex) * MS_PER_DAY)
     const quote = await prisma.quote.create({
@@ -280,6 +295,7 @@ async function main() {
         createdAt,
       },
     })
+    confirmedQuoteIds.push(quote.id)
 
     let lineIdx = 0
     for (const line of lines) {
@@ -299,10 +315,58 @@ async function main() {
       })
       lineIdx++
     }
+
+    const risk = await computeAndPersistQuoteRisk(prisma, quote.id, 'Gold')
+    await seedDecidedApprovals(quote.id, risk, createdAt, {
+      managerId: manager.id,
+      financeId: finance.id,
+    })
+
     orderIndex++
   }
 
+  // Backorder demo: demand exceeds total laptop stock (25 units across warehouses)
+  const backorderQuote = await prisma.quote.create({
+    data: {
+      customerId: acme.id,
+      repUserId: rep.id,
+      status: 'CONFIRMED',
+      blendedRiskScore: 0,
+      createdAt: new Date(Date.now() - 5 * MS_PER_DAY),
+    },
+  })
+  await prisma.quoteLine.create({
+    data: {
+      quoteId: backorderQuote.id,
+      productId: laptop.id,
+      quantity: 30,
+      unitPrice: Number(laptop.unitPrice),
+      discountPercent: 6,
+      lineValue: lineValue(Number(laptop.unitPrice), 30, 6),
+    },
+  })
+  const backorderRisk = await computeAndPersistQuoteRisk(prisma, backorderQuote.id, 'Gold')
+  await seedDecidedApprovals(backorderQuote.id, backorderRisk, backorderQuote.createdAt, {
+    managerId: manager.id,
+    financeId: finance.id,
+  })
+  confirmedQuoteIds.push(backorderQuote.id)
+
   const stageCount = await backfillAllConfirmedQuoteTransitions(prisma)
+
+  // Fulfillment allocations via real allocator (first 3 confirmed + backorder quote)
+  for (const quoteId of [...confirmedQuoteIds.slice(0, 3), backorderQuote.id]) {
+    await allocateQuoteFulfillment(quoteId, rep.id, { skipStatusCheck: true })
+  }
+
+  // Subscription + prorated ledger on first confirmed quote
+  const billingQuoteId = confirmedQuoteIds[0]!
+  const subscription = await addSubscriptionToQuote(
+    billingQuoteId,
+    { planId: supportPlan.id, quantity: 2 },
+    rep.id,
+  )
+  await changeSubscriptionQuantity(billingQuoteId, subscription.id, 5, rep.id)
 
   // Active DRAFT quote for anomaly demo — rep history is low (5-8%), one line at 25%
   const anomalyDemoQuote = await prisma.quote.create({
@@ -345,13 +409,15 @@ async function main() {
     },
   })
 
-  // PENDING_APPROVAL quote sitting long enough to surface stall detection
+  const anomalyRisk = await computeAndPersistQuoteRisk(prisma, anomalyDemoQuote.id, 'Gold')
+
+  // PENDING_APPROVAL quote with real approval rows from routing
   const stalledPendingQuote = await prisma.quote.create({
     data: {
       customerId: acme.id,
       repUserId: rep.id,
-      status: 'PENDING_APPROVAL',
-      blendedRiskScore: 0.42,
+      status: 'DRAFT',
+      blendedRiskScore: 0,
       createdAt: new Date(Date.now() - 12 * MS_PER_DAY),
     },
   })
@@ -366,6 +432,9 @@ async function main() {
       lineValue: lineValue(Number(crm.unitPrice), 1, 7),
     },
   })
+
+  const stalledRisk = await computeAndPersistQuoteRisk(prisma, stalledPendingQuote.id, 'Gold')
+  await seedPendingApprovalsForQuote(stalledPendingQuote.id, stalledRisk, rep.id)
 
   const stalledEnteredPending = new Date(Date.now() - 10 * MS_PER_DAY)
   await prisma.quoteStageTransition.createMany({
@@ -383,6 +452,86 @@ async function main() {
         transitionedAt: stalledEnteredPending,
       },
     ],
+  })
+
+  // SENT quote with change requests for Approvals / portal demo
+  const negotiationQuote = await prisma.quote.create({
+    data: {
+      customerId: acme.id,
+      repUserId: rep.id,
+      status: 'SENT',
+      blendedRiskScore: 0,
+      createdAt: new Date(Date.now() - 3 * MS_PER_DAY),
+    },
+  })
+  const negotiationLine = await prisma.quoteLine.create({
+    data: {
+      quoteId: negotiationQuote.id,
+      productId: setup.id,
+      quantity: 1,
+      unitPrice: Number(setup.unitPrice),
+      discountPercent: 8,
+      lineValue: lineValue(Number(setup.unitPrice), 1, 8),
+    },
+  })
+  const negotiationRisk = await computeAndPersistQuoteRisk(prisma, negotiationQuote.id, 'Gold')
+  await seedDecidedApprovals(negotiationQuote.id, negotiationRisk, negotiationQuote.createdAt, {
+    managerId: manager.id,
+    financeId: finance.id,
+  })
+
+  const pendingCr = await prisma.changeRequest.create({
+    data: {
+      id: randomUUID(),
+      quoteId: stalledPendingQuote.id,
+      quoteLineId: null,
+      type: 'COMMENT',
+      message: 'Can we bundle onsite setup with extended warranty?',
+      status: 'PENDING',
+      createdAt: new Date(Date.now() - 2 * MS_PER_DAY),
+    },
+  })
+
+  const acceptedCr = await prisma.changeRequest.create({
+    data: {
+      id: randomUUID(),
+      quoteId: negotiationQuote.id,
+      quoteLineId: negotiationLine.id,
+      type: 'COUNTER_DISCOUNT',
+      proposedDiscountPercent: 12,
+      message: 'Customer requests 12% on setup line',
+      status: 'ACCEPTED',
+      createdAt: new Date(Date.now() - 1 * MS_PER_DAY),
+      resolvedAt: new Date(Date.now() - 12 * MS_PER_HOUR),
+    },
+  })
+
+  await appendEvent({
+    aggregateId: stalledPendingQuote.id,
+    aggregateType: 'Quote',
+    type: 'ChangeRequestSubmitted',
+    payload: { changeRequestId: pendingCr.id, type: 'COMMENT', message: pendingCr.message },
+    actorUserId: null,
+  })
+
+  await appendEvent({
+    aggregateId: negotiationQuote.id,
+    aggregateType: 'Quote',
+    type: 'ChangeRequestSubmitted',
+    payload: {
+      changeRequestId: acceptedCr.id,
+      type: 'COUNTER_DISCOUNT',
+      proposedDiscountPercent: 12,
+    },
+    actorUserId: null,
+  })
+
+  const portalToken = `seed-portal-${negotiationQuote.id.slice(0, 8)}`
+  await seedPortalSession(prisma, {
+    customerId: acme.id,
+    quoteId: negotiationQuote.id,
+    token: portalToken,
+    expiresAt: new Date(Date.now() + 7 * MS_PER_DAY),
   })
 
   const recsStats = await recomputeCoOccurrenceFromHistory()
@@ -404,8 +553,12 @@ async function main() {
     `\nRecs bootstrap: ${recsStats.confirmedQuotesProcessed} confirmed quotes → ${recsStats.coOccurrencePairs} pairs, ${recsStats.productPurchaseCounts} product counts`,
   )
   console.log(`Stage transitions backfilled: ${stageCount} confirmed quotes`)
-  console.log(`Anomaly demo DRAFT quote ID: ${anomalyDemoQuote.id}`)
-  console.log(`Stalled PENDING_APPROVAL quote ID: ${stalledPendingQuote.id}`)
+  console.log(`Anomaly demo DRAFT quote ID: ${anomalyDemoQuote.id} (risk: ${anomalyRisk.toFixed(3)})`)
+  console.log(`Stalled PENDING_APPROVAL quote ID: ${stalledPendingQuote.id} (risk: ${stalledRisk.toFixed(3)})`)
+  console.log(`Negotiation SENT quote ID: ${negotiationQuote.id}`)
+  console.log(`Backorder demo quote ID: ${backorderQuote.id}`)
+  console.log(`Portal token (negotiation quote): ${portalToken}`)
+  console.log(`Seeded subscription on quote: ${billingQuoteId}`)
 }
 
 main()

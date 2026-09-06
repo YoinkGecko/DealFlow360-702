@@ -12,7 +12,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
   return (
     <th
       className={cn(
-        'text-left text-xs font-medium text-[#6b7280] uppercase tracking-wide px-4 py-3 border-b border-[#e8eaed] bg-[#fafbfc]',
+        'text-left text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-table-header-bg)]',
         className,
       )}
     >
@@ -35,7 +35,11 @@ export function Td({
   return (
     <td
       colSpan={colSpan}
-      className={cn('px-4 py-3 border-b border-[#e8eaed] text-[#1a1d21]', onClick && 'cursor-pointer hover:bg-[#fafbfc]', className)}
+      className={cn(
+        'px-4 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]',
+        onClick && 'cursor-pointer hover:bg-[var(--color-table-row-hover)]',
+        className,
+      )}
       onClick={onClick}
     >
       {children}

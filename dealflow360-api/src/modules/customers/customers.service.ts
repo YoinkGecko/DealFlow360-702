@@ -1,10 +1,28 @@
 import { prisma } from '../../db/client.js'
+import { paginateParams, paginatedResult } from '../../core/pagination.js'
 
-export async function listCustomers() {
-  return prisma.customer.findMany({
-    include: { tier: true },
-    orderBy: { name: 'asc' },
-  })
+export async function listCustomers(filters: { page?: number; limit?: number; search?: string } = {}) {
+  const { skip, take, page, limit } = paginateParams(filters.page, filters.limit)
+  const where = filters.search
+    ? {
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' as const } },
+          { email: { contains: filters.search, mode: 'insensitive' as const } },
+        ],
+      }
+    : {}
+
+  const [items, total] = await Promise.all([
+    prisma.customer.findMany({
+      where,
+      include: { tier: true },
+      orderBy: { name: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.customer.count({ where }),
+  ])
+  return paginatedResult(items, total, page, limit)
 }
 
 export async function createCustomer(data: {

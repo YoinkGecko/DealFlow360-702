@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { AppProvider } from './context/AppContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { LandingPage } from './pages/marketing/LandingPage'
@@ -28,7 +29,7 @@ function ProtectedApp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8] text-sm text-[#6b7280]">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] text-sm text-[var(--color-muted)]">
         Loading…
       </div>
     )
@@ -75,8 +76,9 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -85,7 +87,8 @@ export default function App() {
           <Route path="/app/*" element={<ProtectedApp />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }

@@ -14,11 +14,32 @@ import type {
   ApiWarehouse,
   PortalAccessResponse,
   QuoteStatus,
+  PaginatedResponse,
 } from './types'
 
-export function fetchQuotes(status?: QuoteStatus) {
-  const q = status ? `?status=${status}` : ''
-  return apiFetch<ApiQuote[]>(`/quotes${q}`)
+function queryString(params: Record<string, string | number | undefined>) {
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '') qs.set(k, String(v))
+  }
+  const s = qs.toString()
+  return s ? `?${s}` : ''
+}
+
+export function fetchQuotes(params?: {
+  status?: QuoteStatus
+  page?: number
+  limit?: number
+  search?: string
+}) {
+  return apiFetch<PaginatedResponse<ApiQuote>>(
+    `/quotes${queryString({
+      status: params?.status,
+      page: params?.page,
+      limit: params?.limit,
+      search: params?.search,
+    })}`,
+  )
 }
 
 export function fetchQuote(id: string) {
@@ -99,12 +120,16 @@ export function respondChangeRequest(
   })
 }
 
-export function fetchCustomers() {
-  return apiFetch<ApiCustomer[]>('/customers')
+export function fetchCustomers(params?: { page?: number; limit?: number; search?: string }) {
+  return apiFetch<PaginatedResponse<ApiCustomer>>(
+    `/customers${queryString({ page: params?.page, limit: params?.limit, search: params?.search })}`,
+  )
 }
 
-export function fetchProducts() {
-  return apiFetch<ApiProduct[]>('/products')
+export function fetchProducts(params?: { page?: number; limit?: number; search?: string }) {
+  return apiFetch<PaginatedResponse<ApiProduct>>(
+    `/products${queryString({ page: params?.page, limit: params?.limit, search: params?.search })}`,
+  )
 }
 
 export function fetchRecommendations(productId: string) {
@@ -165,8 +190,10 @@ export function fetchLedger(quoteId: string) {
   }>(`/quotes/${quoteId}/ledger`)
 }
 
-export function fetchAuditEvents(quoteId: string) {
-  return apiFetch<{ aggregateId: string; events: ApiAuditEvent[] }>(`/audit/quotes/${quoteId}`)
+export function fetchAuditEvents(quoteId: string, page = 1, limit = 20) {
+  return apiFetch<PaginatedResponse<ApiAuditEvent> & { aggregateId: string }>(
+    `/audit/quotes/${quoteId}${queryString({ page, limit })}`,
+  )
 }
 
 export function replayQuote(

@@ -5,6 +5,8 @@ import {
   createCustomerBodySchema,
   customerSchema,
   errorSchema,
+  paginationQuerySchema,
+  paginatedMetaSchema,
 } from '../../core/schemas.js'
 import { requireRoles } from '../../core/auth-middleware.js'
 import { handleRouteError } from '../../core/errors.js'
@@ -20,12 +22,18 @@ export async function customersRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Customers'],
         security: [{ bearerAuth: [] }],
-        response: { 200: z.array(customerSchema) },
+        querystring: paginationQuerySchema,
+        response: {
+          200: z.object({
+            items: z.array(customerSchema),
+            ...paginatedMetaSchema.shape,
+          }),
+        },
       },
     },
-    async () => {
-      const customers = await customersService.listCustomers()
-      return customers.map(serializeCustomer)
+    async (request) => {
+      const result = await customersService.listCustomers(request.query)
+      return { ...result, items: result.items.map(serializeCustomer) }
     },
   )
 

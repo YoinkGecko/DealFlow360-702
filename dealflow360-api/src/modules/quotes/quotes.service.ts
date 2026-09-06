@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ApprovalDecision, QuoteStatus, UserRole } from '@prisma/client'
 import { prisma } from '../../db/client.js'
+import { paginateParams, paginatedResult } from '../../core/pagination.js'
 import { appendEvent } from '../../core/event-store.js'
 import {
   computeQuoteBlendedRisk,
@@ -216,19 +217,40 @@ export async function getQuoteDetail(quoteId: string) {
 export async function listQuotes(filters: {
   status?: QuoteStatus
   repUserId?: string
+  page?: number
+  limit?: number
+  search?: string
 }) {
-  return prisma.quote.findMany({
-    where: {
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.repUserId ? { repUserId: filters.repUserId } : {}),
-    },
-    include: {
-      customer: { include: { tier: true } },
-      lines: { include: { product: true } },
-      approvals: { orderBy: { sortOrder: 'asc' } },
-    },
-    orderBy: { updatedAt: 'desc' },
-  })
+  const { skip, take, page, limit } = paginateParams(filters.page, filters.limit)
+
+  const where = {
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.repUserId ? { repUserId: filters.repUserId } : {}),
+    ...(filters.search
+      ? {
+          customer: {
+            name: { contains: filters.search, mode: 'insensitive' as const },
+          },
+        }
+      : {}),
+  }
+
+  const [quotes, total] = await Promise.all([
+    prisma.quote.findMany({
+      where,
+      include: {
+        customer: { include: { tier: true } },
+        lines: { include: { product: true } },
+        approvals: { orderBy: { sortOrder: 'asc' } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.quote.count({ where }),
+  ])
+
+  return paginatedResult(quotes, total, page, limit)
 }
 
 export async function submitQuoteForApproval(quoteId: string, actorUserId: string) {

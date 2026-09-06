@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Table, Th, Td, Tr } from '../../components/ui/Table'
+import { Pagination } from '../../components/ui/Pagination'
 import { ApiError } from '../../lib/api'
 import { fetchAnomalies, fetchStalledQuotes, fetchWarehouses } from '../../lib/quotes-api'
 import { shortQuoteId } from '../../lib/quote-utils'
@@ -30,7 +31,7 @@ export function FulfillmentPage() {
   return (
     <div className="space-y-4 animate-in">
       <h1 className="text-xl font-semibold">Fulfillment</h1>
-      <p className="text-sm text-[#6b7280]">
+      <p className="text-sm text-[var(--color-muted)]">
         Warehouse inventory overview. Allocate stock from an approved deal&apos;s workspace (Fulfillment tab).
       </p>
 
@@ -42,14 +43,14 @@ export function FulfillmentPage() {
           { label: 'Avg ship cost/unit', value: warehouses.length ? `₹${Math.round(warehouses.reduce((s, w) => s + w.shippingCostPerUnit, 0) / warehouses.length)}` : '—' },
         ].map((s) => (
           <Card key={s.label} className="!p-4">
-            <p className="text-xs text-[#6b7280]">{s.label}</p>
+            <p className="text-xs text-[var(--color-muted)]">{s.label}</p>
             <p className="text-xl font-bold mt-1">{s.value}</p>
           </Card>
         ))}
       </div>
 
       {loading ? (
-        <p className="text-sm text-[#6b7280]">Loading warehouses…</p>
+        <p className="text-sm text-[var(--color-muted)]">Loading warehouses…</p>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {warehouses.map((w) => {
@@ -60,15 +61,15 @@ export function FulfillmentPage() {
               <Card key={w.id}>
                 <h3 className="font-semibold text-sm">{w.name}</h3>
                 <div className="mt-3 space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-[#6b7280]">SKUs</span><span>{skus}</span></div>
-                  <div className="flex justify-between"><span className="text-[#6b7280]">Available units</span><span>{units}</span></div>
-                  <div className="flex justify-between"><span className="text-[#6b7280]">Ship cost/unit</span><span>₹{w.shippingCostPerUnit}</span></div>
+                  <div className="flex justify-between"><span className="text-[var(--color-muted)]">SKUs</span><span>{skus}</span></div>
+                  <div className="flex justify-between"><span className="text-[var(--color-muted)]">Available units</span><span>{units}</span></div>
+                  <div className="flex justify-between"><span className="text-[var(--color-muted)]">Ship cost/unit</span><span>₹{w.shippingCostPerUnit}</span></div>
                 </div>
-                <div className="mt-2 h-1.5 bg-[#e8eaed] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#1565C0] rounded-full" style={{ width: `${util}%` }} />
+                <div className="mt-2 h-1.5 bg-[var(--color-border)] rounded-full overflow-hidden">
+                  <div className="h-full bg-[var(--color-brand)] rounded-full" style={{ width: `${util}%` }} />
                 </div>
                 {w.stockLevels.length > 0 && (
-                  <ul className="mt-3 text-xs text-[#6b7280] space-y-1 max-h-24 overflow-y-auto">
+                  <ul className="mt-3 text-xs text-[var(--color-muted)] space-y-1 max-h-24 overflow-y-auto">
                     {w.stockLevels.map((sl) => (
                       <li key={sl.productId}>{sl.productName}: {sl.quantityAvailable}</li>
                     ))}
@@ -93,7 +94,7 @@ export function BillingPage() {
     <div className="space-y-4 animate-in">
       <h1 className="text-xl font-semibold">Billing</h1>
       <Card>
-        <p className="text-sm text-[#6b7280]">
+        <p className="text-sm text-[var(--color-muted)]">
           Billing and ledger entries are scoped to individual deals. Open a deal and use the Billing tab to attach subscriptions and view the ledger.
         </p>
         <Link to="/app/deals" className="inline-block mt-4">
@@ -109,7 +110,7 @@ export function SubscriptionsPage() {
     <div className="space-y-4 animate-in">
       <h1 className="text-xl font-semibold">Subscriptions</h1>
       <Card>
-        <p className="text-sm text-[#6b7280]">
+        <p className="text-sm text-[var(--color-muted)]">
           Subscriptions are attached per quote. Open a deal workspace → Billing tab to attach a plan or change quantity.
         </p>
         <Link to="/app/deals" className="inline-block mt-4">
@@ -125,7 +126,7 @@ export function RecommendationsPage() {
     <div className="space-y-4 animate-in">
       <h1 className="text-xl font-semibold">Recommendations Engine</h1>
       <Card>
-        <p className="text-sm text-[#6b7280]">
+        <p className="text-sm text-[var(--color-muted)]">
           Product recommendations appear in each deal workspace (Quote tab) based on items in the quote.
         </p>
         <Link to="/app/deals" className="inline-block mt-4">
@@ -141,6 +142,9 @@ export function DealHealthPage() {
   const [stalled, setStalled] = useState<ApiStalledQuote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [anomalyPage, setAnomalyPage] = useState(1)
+  const [stalledPage, setStalledPage] = useState(1)
+  const pageSize = 10
 
   useEffect(() => {
     Promise.all([fetchAnomalies(), fetchStalledQuotes()])
@@ -152,8 +156,21 @@ export function DealHealthPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="text-sm text-[#6b7280]">Loading deal health…</p>
-  if (error) return <p className="text-sm text-[#c62828]">{error}</p>
+  const anomalySlice = useMemo(() => {
+    const start = (anomalyPage - 1) * pageSize
+    return anomalies.slice(start, start + pageSize)
+  }, [anomalies, anomalyPage])
+
+  const stalledSlice = useMemo(() => {
+    const start = (stalledPage - 1) * pageSize
+    return stalled.slice(start, start + pageSize)
+  }, [stalled, stalledPage])
+
+  const anomalyPageCount = Math.max(1, Math.ceil(anomalies.length / pageSize))
+  const stalledPageCount = Math.max(1, Math.ceil(stalled.length / pageSize))
+
+  if (loading) return <p className="text-sm text-[var(--color-muted)]">Loading deal health…</p>
+  if (error) return <p className="text-sm text-[var(--color-danger)]">{error}</p>
 
   return (
     <div className="space-y-6 animate-in">
@@ -165,16 +182,16 @@ export function DealHealthPage() {
           <thead><tr><Th>Rep</Th><Th>Deal</Th><Th>Discount</Th><Th>Z-Score</Th><Th>Status</Th></tr></thead>
           <tbody>
             {anomalies.length === 0 ? (
-              <tr><Td colSpan={5} className="text-center py-6 text-[#6b7280]">No anomalies detected</Td></tr>
+              <tr><Td colSpan={5} className="text-center py-6 text-[var(--color-muted)]">No anomalies detected</Td></tr>
             ) : (
-              anomalies.map((a) => (
+              anomalySlice.map((a) => (
                 <Tr key={`${a.quoteId}-${a.lineId}`}>
                   <Td>{a.repName}</Td>
-                  <Td><Link to={`/app/deals/${a.quoteId}`} className="text-[#1565C0]">{shortQuoteId(a.quoteId)}</Link></Td>
-                  <Td className={a.zScore >= 2 ? 'text-[#c62828] font-medium' : ''}>{a.discountPercent}%</Td>
+                  <Td><Link to={`/app/deals/${a.quoteId}`} className="text-[var(--color-brand)]">{shortQuoteId(a.quoteId)}</Link></Td>
+                  <Td className={a.zScore >= 2 ? 'text-[var(--color-danger)] font-medium' : ''}>{a.discountPercent}%</Td>
                   <Td>{a.zScore.toFixed(1)}</Td>
                   <Td>
-                    <span className={`text-xs font-medium ${a.zScore >= 2 ? 'text-[#c62828]' : 'text-[#2e7d32]'}`}>
+                    <span className={`text-xs font-medium ${a.zScore >= 2 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
                       {a.zScore >= 2 ? 'Anomaly Detected' : 'Normal'}
                     </span>
                   </Td>
@@ -183,6 +200,16 @@ export function DealHealthPage() {
             )}
           </tbody>
         </Table>
+        {anomalies.length > pageSize && (
+          <div className="px-4 pb-3">
+            <Pagination
+              page={anomalyPage}
+              pageCount={anomalyPageCount}
+              total={anomalies.length}
+              onPageChange={setAnomalyPage}
+            />
+          </div>
+        )}
       </Card>
 
       <Card>
@@ -191,15 +218,15 @@ export function DealHealthPage() {
           <thead><tr><Th>Deal</Th><Th>Stage</Th><Th>Days In Stage</Th><Th>Threshold</Th><Th>Status</Th><Th>Action</Th></tr></thead>
           <tbody>
             {stalled.length === 0 ? (
-              <tr><Td colSpan={6} className="text-center py-6 text-[#6b7280]">No stalled deals</Td></tr>
+              <tr><Td colSpan={6} className="text-center py-6 text-[var(--color-muted)]">No stalled deals</Td></tr>
             ) : (
-              stalled.map((q) => (
+              stalledSlice.map((q) => (
                 <Tr key={q.quoteId}>
-                  <Td><Link to={`/app/deals/${q.quoteId}`} className="text-[#1565C0]">{shortQuoteId(q.quoteId)}</Link></Td>
+                  <Td><Link to={`/app/deals/${q.quoteId}`} className="text-[var(--color-brand)]">{shortQuoteId(q.quoteId)}</Link></Td>
                   <Td>{q.currentStatus.replace(/_/g, ' ')}</Td>
-                  <Td className="text-[#c62828]">{q.dwellDays}</Td>
+                  <Td className="text-[var(--color-danger)]">{q.dwellDays}</Td>
                   <Td>{q.threshold} days</Td>
-                  <Td><span className="text-xs text-[#ed6c02]">Stalled</span></Td>
+                  <Td><span className="text-xs text-[var(--color-warning)]">Stalled</span></Td>
                   <Td>
                     <Button variant="ghost" size="sm" disabled title="Coming soon">
                       Nudge Rep (soon)
@@ -210,6 +237,16 @@ export function DealHealthPage() {
             )}
           </tbody>
         </Table>
+        {stalled.length > pageSize && (
+          <div className="px-4 pb-3">
+            <Pagination
+              page={stalledPage}
+              pageCount={stalledPageCount}
+              total={stalled.length}
+              onPageChange={setStalledPage}
+            />
+          </div>
+        )}
       </Card>
     </div>
   )
@@ -227,7 +264,7 @@ export function AnalyticsPage() {
         <h1 className="text-xl font-semibold">Analytics</h1>
         <div className="flex gap-2">
           {['Date', 'Sales Rep', 'Tier', 'Category'].map((f) => (
-            <select key={f} className="text-xs border border-[#e8eaed] rounded px-2 py-1.5 bg-white">
+            <select key={f} className="text-xs border border-[var(--color-border)] rounded px-2 py-1.5 bg-[var(--color-surface)]">
               <option>{f}</option>
             </select>
           ))}
@@ -266,7 +303,7 @@ export function AnalyticsPage() {
           { label: 'Conversion Rate', value: '34%' },
         ].map((k) => (
           <Card key={k.label} className="!p-4 text-center">
-            <p className="text-xs text-[#6b7280]">{k.label}</p>
+            <p className="text-xs text-[var(--color-muted)]">{k.label}</p>
             <p className="text-xl font-bold mt-1">{k.value}</p>
           </Card>
         ))}

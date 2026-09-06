@@ -51,8 +51,8 @@ export function OverviewPage() {
   const [pending, setPending] = useState<ApiQuote[]>([])
 
   useEffect(() => {
-    fetchQuotes('PENDING_APPROVAL')
-      .then(setPending)
+    fetchQuotes({ status: 'PENDING_APPROVAL', limit: 5 })
+      .then((r) => setPending(r.items))
       .catch(() => setPending([]))
   }, [])
 
@@ -60,15 +60,15 @@ export function OverviewPage() {
     <div className="space-y-6 animate-in">
       <div>
         <h1 className="text-xl font-semibold">{getIstGreeting()}, {user.name.split(' ')[0]}</h1>
-        <p className="text-sm text-[#6b7280] mt-0.5">Here's what's happening across your sales operations.</p>
+        <p className="text-sm text-[var(--color-muted)] mt-0.5">Here's what's happening across your sales operations.</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {KPI.map((k) => (
           <Card key={k.label} className="!p-4">
-            <p className="text-xs text-[#6b7280]">{k.label}</p>
+            <p className="text-xs text-[var(--color-muted)]">{k.label}</p>
             <p className="text-lg font-bold mt-1">{k.value}</p>
-            <p className={`text-xs mt-1 ${k.up ? 'text-[#2e7d32]' : 'text-[#ed6c02]'}`}>{k.change}</p>
+            <p className={`text-xs mt-1 ${k.up ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}`}>{k.change}</p>
           </Card>
         ))}
       </div>
@@ -118,12 +118,12 @@ export function OverviewPage() {
             <tbody>
               {pending.map((d) => (
                 <Tr key={d.id}>
-                  <Td><Link to={`/app/deals/${d.id}`} className="text-[#1565C0] font-medium">{shortQuoteId(d.id)}</Link></Td>
+                  <Td><Link to={`/app/deals/${d.id}`} className="text-[var(--color-brand)] font-medium">{shortQuoteId(d.id)}</Link></Td>
                   <Td>{d.customer?.name ?? '—'}</Td>
                   <Td><RiskBadge level={riskLevelFromScore(d.blendedRiskScore)} /></Td>
                   <Td>{avgDiscount(d.lines).toFixed(1)}%</Td>
                   <Td className="text-xs">{d.approvals.find((a) => a.decision === 'PENDING')?.approverRole ?? '—'}</Td>
-                  <Td className="text-xs text-[#6b7280]">{timeAgo(d.updatedAt)}</Td>
+                  <Td className="text-xs text-[var(--color-muted)]">{timeAgo(d.updatedAt)}</Td>
                 </Tr>
               ))}
             </tbody>
@@ -146,10 +146,10 @@ export function OverviewPage() {
         <CardHeader title="Recent Activity" subtitle="Live event stream" />
         <div className="space-y-0">
           {ACTIVITY.map((a, i) => (
-            <div key={i} className="flex items-center gap-4 py-3 border-b border-[#e8eaed] last:border-0 text-sm">
-              <span className="w-2 h-2 rounded-full bg-[#1565C0] shrink-0" />
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-[var(--color-border)] last:border-0 text-sm">
+              <span className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0" />
               <span className="flex-1">{a.action} — <span className="font-medium">{a.deal}</span></span>
-              <span className="text-xs text-[#6b7280]">{a.time}</span>
+              <span className="text-xs text-[var(--color-muted)]">{a.time}</span>
             </div>
           ))}
         </div>
@@ -160,8 +160,8 @@ export function OverviewPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 bg-[#fafbfc] rounded border border-[#e8eaed]">
-      <p className="text-xs text-[#6b7280]">{label}</p>
+    <div className="p-3 bg-[var(--color-table-header-bg)] rounded border border-[var(--color-border)]">
+      <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className="text-lg font-semibold mt-0.5">{value}</p>
     </div>
   )

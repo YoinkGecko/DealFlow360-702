@@ -175,6 +175,22 @@ export const changeSubscriptionQuantityBodySchema = z.object({
 export const listQuotesQuerySchema = z.object({
   status: quoteStatusSchema.optional(),
   repUserId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  search: z.string().optional(),
+})
+
+export const paginationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  search: z.string().optional(),
+})
+
+export const paginatedMetaSchema = z.object({
+  total: z.number().int(),
+  page: z.number().int(),
+  limit: z.number().int(),
+  pageCount: z.number().int(),
 })
 
 export const eventSchema = z.object({

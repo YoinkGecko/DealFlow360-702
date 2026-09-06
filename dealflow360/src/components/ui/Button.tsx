@@ -9,11 +9,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-[#1565C0] text-white hover:bg-[#0d47a1] border border-transparent',
-  secondary: 'bg-white text-[#1a1d21] border border-[#e8eaed] hover:bg-[#f5f6f8]',
-  ghost: 'bg-transparent text-[#6b7280] hover:bg-[#f5f6f8] border border-transparent',
-  danger: 'bg-[#c62828] text-white hover:bg-[#b71c1c] border border-transparent',
-  outline: 'bg-transparent text-[#1565C0] border border-[#1565C0] hover:bg-[#e3f2fd]',
+  primary: 'bg-[var(--color-brand)] text-[var(--color-on-brand)] hover:bg-[var(--color-brand-hover)] border border-transparent',
+  secondary: 'bg-[var(--color-surface)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-hover)]',
+  ghost: 'bg-transparent text-[var(--color-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text)] border border-transparent',
+  danger: 'bg-[var(--color-danger)] text-[var(--color-on-brand)] hover:opacity-90 border border-transparent',
+  outline: 'bg-transparent text-[var(--color-brand)] border border-[var(--color-brand)] hover:bg-[var(--color-brand-light)]',
 }
 
 const sizes: Record<Size, string> = {

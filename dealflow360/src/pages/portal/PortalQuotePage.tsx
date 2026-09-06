@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Moon, Sun } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { StageBadge } from '../../components/ui/Badge'
+import { useTheme } from '../../context/ThemeContext'
 import { ApiError } from '../../lib/api'
 import {
   confirmPortalQuote,
@@ -9,12 +11,13 @@ import {
   fetchPortalQuote,
   submitPortalChangeRequest,
 } from '../../lib/portal-api'
-import { formatRiskPercent, quoteTotal, riskLevelFromScore } from '../../lib/quote-utils'
+import { quoteTotal, riskLevelFromScore } from '../../lib/quote-utils'
 import type { ApiChangeRequest, PortalQuoteView } from '../../lib/types'
 import { formatCurrency } from '../../lib/utils'
 
 export function PortalQuotePage() {
   const { token } = useParams<{ token: string }>()
+  const { theme, toggleTheme } = useTheme()
   const [quote, setQuote] = useState<PortalQuoteView | null>(null)
   const [changeRequests, setChangeRequests] = useState<ApiChangeRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -97,7 +100,7 @@ export function PortalQuotePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f5f6f8] flex items-center justify-center text-sm text-[#6b7280]">
+      <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center text-sm text-[var(--color-muted)]">
         Loading your quotation…
       </div>
     )
@@ -105,10 +108,10 @@ export function PortalQuotePage() {
 
   if (error || !quote) {
     return (
-      <div className="min-h-screen bg-[#f5f6f8] flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white border border-[#e8eaed] rounded-lg p-6 text-center">
-          <p className="text-[#c62828] font-medium">{error || 'Quotation not found'}</p>
-          <p className="text-sm text-[#6b7280] mt-2">This link may have expired. Contact your sales representative.</p>
+      <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-6 text-center">
+          <p className="text-[var(--color-danger)] font-medium">{error || 'Quotation not found'}</p>
+          <p className="text-sm text-[var(--color-muted)] mt-2">This link may have expired. Contact your sales representative.</p>
         </div>
       </div>
     )
@@ -118,39 +121,49 @@ export function PortalQuotePage() {
   const riskLevel = riskLevelFromScore(quote.blendedRiskScore)
 
   return (
-    <div className="min-h-screen bg-[#f5f6f8]">
-      <header className="bg-white border-b border-[#e8eaed] px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <div className="w-8 h-8 rounded bg-[#1565C0] flex items-center justify-center text-white text-xs font-bold">DF</div>
-          <div>
-            <p className="font-semibold text-sm">DealFlow360 Customer Portal</p>
-            <p className="text-xs text-[#6b7280]">Quotation for {quote.customerName}</p>
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      <header className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 py-4">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded bg-[var(--color-brand)] flex items-center justify-center text-[var(--color-on-brand)] text-xs font-bold">DF</div>
+            <div>
+              <p className="font-semibold text-sm">DealFlow360 Customer Portal</p>
+              <p className="text-xs text-[var(--color-muted)]">Quotation for {quote.customerName}</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 rounded-md border border-[var(--color-border)] text-[var(--color-muted)] hover:bg-[var(--color-bg)]"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">
-        <div className="bg-white border border-[#e8eaed] rounded-lg p-6">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-6">
           <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
               <h1 className="text-xl font-semibold">Your Quotation</h1>
-              <p className="text-sm text-[#6b7280]">{quote.customerName} · {quote.tier} tier</p>
+              <p className="text-sm text-[var(--color-muted)]">{quote.customerName} · {quote.tier} tier</p>
             </div>
             <StageBadge stage={quote.status} />
           </div>
 
-          <div className="flex items-center gap-4 p-3 bg-[#fafbfc] rounded-md text-sm mb-4">
-            <span className="text-[#6b7280]">Risk indicator:</span>
+          <div className="flex items-center gap-4 p-3 bg-[var(--color-bg)] rounded-md text-sm mb-4">
+            <span className="text-[var(--color-muted)]">Pricing review:</span>
             <span className={`font-medium ${
-              riskLevel === 'high' ? 'text-[#c62828]' : riskLevel === 'medium' ? 'text-[#ed6c02]' : 'text-[#2e7d32]'
+              riskLevel === 'high' ? 'text-[var(--color-danger)]' : riskLevel === 'medium' ? 'text-[var(--color-warning)]' : 'text-[var(--color-success)]'
             }`}>
-              {formatRiskPercent(quote.blendedRiskScore)}
+              {riskLevel === 'high' ? 'Needs review' : riskLevel === 'medium' ? 'Standard terms' : 'Within guidelines'}
             </span>
           </div>
 
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs text-[#6b7280] uppercase border-b border-[#e8eaed]">
+              <tr className="text-xs text-[var(--color-muted)] uppercase border-b border-[var(--color-border)]">
                 <th className="text-left py-2">Product</th>
                 <th className="text-right py-2">Qty</th>
                 <th className="text-right py-2">Unit</th>
@@ -160,7 +173,7 @@ export function PortalQuotePage() {
             </thead>
             <tbody>
               {quote.lines.map((line) => (
-                <tr key={line.id} className="border-b border-[#e8eaed]">
+                <tr key={line.id} className="border-b border-[var(--color-border)]">
                   <td className="py-2 font-medium">{line.productName}</td>
                   <td className="py-2 text-right">{line.quantity}</td>
                   <td className="py-2 text-right">{formatCurrency(line.unitPrice)}</td>
@@ -174,14 +187,14 @@ export function PortalQuotePage() {
         </div>
 
         {quote.status !== 'CONFIRMED' && (
-          <div className="bg-white border border-[#e8eaed] rounded-lg p-6 space-y-4">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-6 space-y-4">
             <h2 className="font-semibold">Request a change</h2>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setRequestType('COMMENT')}
                 className={`px-3 py-1.5 text-xs rounded-md border ${
-                  requestType === 'COMMENT' ? 'bg-[#1565C0] text-white border-[#1565C0]' : 'border-[#e8eaed]'
+                  requestType === 'COMMENT' ? 'bg-[var(--color-brand)] text-[var(--color-on-brand)] border-[var(--color-brand)]' : 'border-[var(--color-border)]'
                 }`}
               >
                 Comment
@@ -190,7 +203,7 @@ export function PortalQuotePage() {
                 type="button"
                 onClick={() => setRequestType('COUNTER_DISCOUNT')}
                 className={`px-3 py-1.5 text-xs rounded-md border ${
-                  requestType === 'COUNTER_DISCOUNT' ? 'bg-[#1565C0] text-white border-[#1565C0]' : 'border-[#e8eaed]'
+                  requestType === 'COUNTER_DISCOUNT' ? 'bg-[var(--color-brand)] text-[var(--color-on-brand)] border-[var(--color-brand)]' : 'border-[var(--color-border)]'
                 }`}
               >
                 Counter discount
@@ -201,7 +214,7 @@ export function PortalQuotePage() {
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
               placeholder="Your message to the sales team…"
-              className="w-full px-3 py-2 border border-[#e8eaed] rounded-md text-sm"
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm bg-[var(--color-surface)]"
             />
             {requestType === 'COUNTER_DISCOUNT' && (
               <input
@@ -211,14 +224,14 @@ export function PortalQuotePage() {
                 value={proposedDiscount}
                 onChange={(e) => setProposedDiscount(e.target.value)}
                 placeholder="Proposed discount %"
-                className="w-full px-3 py-2 border border-[#e8eaed] rounded-md text-sm"
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm bg-[var(--color-surface)]"
               />
             )}
             <Button onClick={submitChangeRequest} disabled={submitting || !message.trim()}>
               {submitting ? 'Submitting…' : 'Submit change request'}
             </Button>
             {pendingCount > 0 && (
-              <p className="text-xs text-[#ed6c02]">
+              <p className="text-xs text-[var(--color-warning)]">
                 You have {pendingCount} pending change request(s). Confirmation is disabled until they are resolved.
               </p>
             )}
@@ -226,13 +239,13 @@ export function PortalQuotePage() {
         )}
 
         {changeRequests.length > 0 && (
-          <div className="bg-white border border-[#e8eaed] rounded-lg p-6">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-6">
             <h2 className="font-semibold mb-3">Your change requests</h2>
             <ul className="space-y-2 text-sm">
               {changeRequests.map((r) => (
-                <li key={r.id} className="p-3 bg-[#fafbfc] rounded border border-[#e8eaed]">
+                <li key={r.id} className="p-3 bg-[var(--color-bg)] rounded border border-[var(--color-border)]">
                   <span className="font-medium">{r.type}</span> — {r.status}
-                  {r.message && <p className="text-[#6b7280] mt-1">{r.message}</p>}
+                  {r.message && <p className="text-[var(--color-muted)] mt-1">{r.message}</p>}
                 </li>
               ))}
             </ul>
@@ -240,10 +253,10 @@ export function PortalQuotePage() {
         )}
 
         {quote.status !== 'CONFIRMED' && (
-          <div className="bg-white border border-[#e8eaed] rounded-lg p-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-6 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-semibold">Confirm quotation</h2>
-              <p className="text-sm text-[#6b7280]">Accept the terms as presented.</p>
+              <p className="text-sm text-[var(--color-muted)]">Accept the terms as presented.</p>
             </div>
             <Button onClick={confirm} disabled={!canConfirm || confirming}>
               {confirming ? 'Confirming…' : 'Confirm Quotation'}
@@ -252,7 +265,7 @@ export function PortalQuotePage() {
         )}
 
         {statusMsg && (
-          <p className="text-sm text-center text-[#1565C0]">{statusMsg}</p>
+          <p className="text-sm text-center text-[var(--color-brand)]">{statusMsg}</p>
         )}
       </main>
     </div>

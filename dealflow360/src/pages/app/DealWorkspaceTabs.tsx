@@ -5,8 +5,8 @@ import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Table, Th, Td, Tr } from '../../components/ui/Table'
 import { Modal } from '../../components/ui/Modal'
+import { Pagination } from '../../components/ui/Pagination'
 import { QuoteRiskPanel } from '../../components/business/QuoteRiskPanel'
-import type { AppUser } from '../../context/AuthContext'
 import { ApiError } from '../../lib/api'
 import {
   addQuoteLine,
@@ -25,13 +25,7 @@ import {
   submitQuote,
   updateQuoteLine,
 } from '../../lib/quotes-api'
-import {
-  canAllocateFulfillment,
-  canCreateQuote,
-  canManageBilling,
-  canRespondToChangeRequests,
-  canSendToCustomer,
-} from '../../lib/roles'
+import { usePermission } from '../../hooks/usePermission'
 import type { ApiAuditEvent, ApiChangeRequest, ApiProduct, ApiQuote, ApiRecommendation } from '../../lib/types'
 import { avgDiscount, formatRiskPercent } from '../../lib/quote-utils'
 import { formatCurrency, timeAgo } from '../../lib/utils'
@@ -44,7 +38,6 @@ function quoteIsDraft(q: ApiQuote) {
 interface Props {
   activeTab: string
   quote: ApiQuote
-  user: AppUser
   savingLine: string | null
   actionLoading: boolean
   onQuoteUpdated: () => void
@@ -56,7 +49,6 @@ interface Props {
 export function DealWorkspaceTabs({
   activeTab,
   quote,
-  user,
   savingLine,
   actionLoading,
   onQuoteUpdated,
@@ -68,7 +60,6 @@ export function DealWorkspaceTabs({
     return (
       <QuoteTab
         quote={quote}
-        user={user}
         savingLine={savingLine}
         actionLoading={actionLoading}
         onQuoteUpdated={onQuoteUpdated}
@@ -79,10 +70,10 @@ export function DealWorkspaceTabs({
     )
   }
   if (activeTab === 'fulfillment') {
-    return <FulfillmentTab quoteId={quote.id} user={user} onQuoteUpdated={onQuoteUpdated} showToast={showToast} />
+    return <FulfillmentTab quoteId={quote.id} onQuoteUpdated={onQuoteUpdated} showToast={showToast} />
   }
   if (activeTab === 'billing') {
-    return <BillingTab quoteId={quote.id} user={user} onQuoteUpdated={onQuoteUpdated} showToast={showToast} />
+    return <BillingTab quoteId={quote.id} onQuoteUpdated={onQuoteUpdated} showToast={showToast} />
   }
   if (activeTab === 'audit') {
     return <AuditTab quoteId={quote.id} />
@@ -94,7 +85,6 @@ export function DealWorkspaceTabs({
     return (
       <ChangeRequestsTab
         quote={quote}
-        user={user}
         onQuoteUpdated={onQuoteUpdated}
         showToast={showToast}
       />
@@ -105,7 +95,6 @@ export function DealWorkspaceTabs({
 
 function QuoteTab({
   quote,
-  user,
   savingLine,
   actionLoading,
   onQuoteUpdated,
@@ -117,9 +106,12 @@ function QuoteTab({
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [recs, setRecs] = useState<ApiRecommendation[]>([])
   const [addForm, setAddForm] = useState({ productId: '', quantity: 1, discountPercent: 0 })
+  const canAddLine = usePermission('quote.addLine')
+  const canSubmitQuote = usePermission('quote.submit')
+  const canSendQuote = usePermission('quote.sendToCustomer')
   const isDraft = quoteIsDraft(quote)
-  const canSubmit = isDraft && quote.lines.length > 0
   const pendingApproval = quote.status === 'PENDING_APPROVAL'
+  const canSubmit = isDraft && quote.lines.length > 0 && canSubmitQuote
 
   useEffect(() => {
     const productIds = [...new Set(quote.lines.map((l) => l.productId))]
@@ -144,9 +136,9 @@ function QuoteTab({
 
   const openAdd = async () => {
     try {
-      const list = await fetchProducts()
-      setProducts(list)
-      setAddForm({ productId: list[0]?.id ?? '', quantity: 1, discountPercent: 0 })
+      const list = await fetchProducts({ limit: 100 })
+      setProducts(list.items)
+      setAddForm({ productId: list.items[0]?.id ?? '', quantity: 1, discountPercent: 0 })
       setShowAdd(true)
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Failed to load products')
@@ -221,7 +213,7 @@ function QuoteTab({
   return (
     <>
       <div className="flex flex-wrap gap-2 mb-4">
-        {isDraft && canCreateQuote(user.role) && (
+        {isDraft && canAddLine && (
           <>
             <Button variant="secondary" size="sm" onClick={openAdd} disabled={actionLoading}>
               <Plus className="w-4 h-4" /> Add Product
@@ -233,13 +225,13 @@ function QuoteTab({
             )}
           </>
         )}
-        {quote.status === 'APPROVED' && canSendToCustomer(user.role) && (
+        {quote.status === 'APPROVED' && canSendQuote && (
           <Button size="sm" onClick={handleSend} disabled={actionLoading}>
             Send to Customer
           </Button>
         )}
         {isDraft && (
-          <span className="text-xs text-[#6b7280] self-center">
+          <span className="text-xs text-[var(--color-muted)] self-center">
             Changes save automatically when you edit a line.
           </span>
         )}
@@ -251,7 +243,7 @@ function QuoteTab({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-[#6b7280] uppercase">
+                  <tr className="text-xs text-[var(--color-muted)] uppercase">
                     <th className="text-left py-2">Product</th>
                     <th className="text-right py-2">Qty</th>
                     <th className="text-right py-2">Unit</th>
@@ -261,7 +253,7 @@ function QuoteTab({
                 </thead>
                 <tbody>
                   {lines.map((line) => (
-                    <tr key={line.id} className="border-t border-[#e8eaed]">
+                    <tr key={line.id} className="border-t border-[var(--color-border)]">
                       <td className="py-2 font-medium">{line.product?.name ?? '—'}</td>
                       <td className="py-2 text-right">
                         {isDraft ? (
@@ -324,7 +316,7 @@ function QuoteTab({
               </table>
             </div>
             {lines.length === 0 && (
-              <p className="text-sm text-[#6b7280] py-4 text-center">No products on this quote yet.</p>
+              <p className="text-sm text-[var(--color-muted)] py-4 text-center">No products on this quote yet.</p>
             )}
           </Card>
 
@@ -333,13 +325,13 @@ function QuoteTab({
               <CardHeader title="Recommendations" subtitle="Based on products in this quote" />
               <div className="grid sm:grid-cols-2 gap-3">
                 {recs.map((r) => (
-                  <div key={r.productId} className="p-3 border border-[#e8eaed] rounded-md text-sm">
+                  <div key={r.productId} className="p-3 border border-[var(--color-border)] rounded-md text-sm">
                     <p className="font-medium">{r.productName}</p>
-                    <p className="text-[#6b7280] text-xs mt-1">Lift: {r.liftScore}x</p>
+                    <p className="text-[var(--color-muted)] text-xs mt-1">Lift: {r.liftScore}x</p>
                     {r.promotionTag && (
-                      <span className="text-xs text-[#1565C0]">{r.promotionTag}</span>
+                      <span className="text-xs text-[var(--color-brand)]">{r.promotionTag}</span>
                     )}
-                    {isDraft && canCreateQuote(user.role) && (
+                    {isDraft && canAddLine && (
                       <Button size="sm" className="mt-2" onClick={() => addRecToQuote(r)} disabled={actionLoading}>
                         Add to Quote
                       </Button>
@@ -356,11 +348,11 @@ function QuoteTab({
             <h3 className="text-sm font-semibold mb-3">Summary</h3>
             <div className="text-sm space-y-2">
               <div className="flex justify-between">
-                <span className="text-[#6b7280]">Total</span>
+                <span className="text-[var(--color-muted)]">Total</span>
                 <span>{formatCurrency(total)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6b7280]">Avg discount</span>
+                <span className="text-[var(--color-muted)]">Avg discount</span>
                 <span>{avgDiscount(lines).toFixed(1)}%</span>
               </div>
             </div>
@@ -368,8 +360,8 @@ function QuoteTab({
           <QuoteRiskPanel quote={quote} />
           {pendingApproval && (
             <Card>
-              <p className="text-sm text-[#ed6c02]">Awaiting approval — check the Approvals screen.</p>
-              <Link to="/app/approvals" className="text-sm text-[#1565C0] mt-2 inline-block">
+              <p className="text-sm text-[var(--color-warning)]">Awaiting approval — check the Approvals screen.</p>
+              <Link to="/app/approvals" className="text-sm text-[var(--color-brand)] mt-2 inline-block">
                 Go to Approvals →
               </Link>
             </Card>
@@ -423,19 +415,17 @@ function QuoteTab({
 
 function FulfillmentTab({
   quoteId,
-  user,
   onQuoteUpdated,
   showToast,
 }: {
   quoteId: string
-  user: AppUser
   onQuoteUpdated: () => void
   showToast: (m: string) => void
 }) {
   const [fulfillment, setFulfillment] = useState<Awaited<ReturnType<typeof fetchFulfillment>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [allocating, setAllocating] = useState(false)
-  const canAllocate = canAllocateFulfillment(user.role)
+  const canAllocate = usePermission('fulfillment.allocate')
 
   const load = () => {
     setLoading(true)
@@ -463,7 +453,7 @@ function FulfillmentTab({
     }
   }
 
-  if (loading) return <p className="text-sm text-[#6b7280]">Loading fulfillment…</p>
+  if (loading) return <p className="text-sm text-[var(--color-muted)]">Loading fulfillment…</p>
 
   return (
     <Card>
@@ -474,29 +464,27 @@ function FulfillmentTab({
             <Button size="sm" onClick={allocate} disabled={allocating}>
               {allocating ? 'Allocating…' : 'Allocate'}
             </Button>
-          ) : (
-            <span className="text-xs text-[#6b7280]">Rep/Manager role required</span>
-          )
+          ) : undefined
         }
       />
       {!fulfillment?.lines?.length ? (
-        <p className="text-sm text-[#6b7280]">No allocation yet. Quote must be APPROVED to allocate.</p>
+        <p className="text-sm text-[var(--color-muted)]">No allocation yet. Quote must be APPROVED to allocate.</p>
       ) : (
         <div className="space-y-4">
           {fulfillment.lines.map((line) => (
-            <div key={line.quoteLineId} className="border border-[#e8eaed] rounded-md p-3 text-sm">
+            <div key={line.quoteLineId} className="border border-[var(--color-border)] rounded-md p-3 text-sm">
               <p className="font-medium">{line.productName} × {line.quantityRequested}</p>
               {line.allocations.length > 0 ? (
-                <ul className="mt-2 space-y-1 text-[#6b7280]">
+                <ul className="mt-2 space-y-1 text-[var(--color-muted)]">
                   {line.allocations.map((a) => (
                     <li key={a.warehouseId}>{a.warehouseName}: {a.quantity} units</li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[#6b7280] mt-1">No warehouse split yet</p>
+                <p className="text-[var(--color-muted)] mt-1">No warehouse split yet</p>
               )}
               {line.backorderedQuantity > 0 && (
-                <p className="text-[#c62828] mt-1">Backorder: {line.backorderedQuantity}</p>
+                <p className="text-[var(--color-danger)] mt-1">Backorder: {line.backorderedQuantity}</p>
               )}
             </div>
           ))}
@@ -508,12 +496,10 @@ function FulfillmentTab({
 
 function BillingTab({
   quoteId,
-  user,
   onQuoteUpdated,
   showToast,
 }: {
   quoteId: string
-  user: AppUser
   onQuoteUpdated: () => void
   showToast: (m: string) => void
 }) {
@@ -523,7 +509,7 @@ function BillingTab({
   const [subId, setSubId] = useState('')
   const [newQty, setNewQty] = useState(3)
   const [loading, setLoading] = useState(true)
-  const canBill = canManageBilling(user.role)
+  const canBill = usePermission('billing.manage')
 
   const load = () => {
     setLoading(true)
@@ -567,7 +553,7 @@ function BillingTab({
     }
   }
 
-  if (loading) return <p className="text-sm text-[#6b7280]">Loading ledger…</p>
+  if (loading) return <p className="text-sm text-[var(--color-muted)]">Loading ledger…</p>
 
   return (
     <div className="space-y-4">
@@ -608,7 +594,9 @@ function BillingTab({
           </div>
         </Card>
       )}
-      {!canBill && <p className="text-sm text-[#6b7280]">Finance/Rep role required for billing actions.</p>}
+      {!canBill && (ledger?.entries ?? []).length === 0 && (
+        <p className="text-sm text-[var(--color-muted)]">No billing actions available for your role.</p>
+      )}
       <Card padding={false}>
         <Table>
           <thead>
@@ -616,7 +604,7 @@ function BillingTab({
           </thead>
           <tbody>
             {(ledger?.entries ?? []).length === 0 ? (
-              <tr><Td colSpan={5} className="text-center py-6 text-[#6b7280]">No ledger entries</Td></tr>
+              <tr><Td colSpan={5} className="text-center py-6 text-[var(--color-muted)]">No ledger entries</Td></tr>
             ) : (
               ledger!.entries.map((e) => (
                 <Tr key={e.id}>
@@ -640,16 +628,24 @@ function AuditTab({ quoteId }: { quoteId: string }) {
   const [events, setEvents] = useState<ApiAuditEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageCount, setPageCount] = useState(1)
+  const [total, setTotal] = useState(0)
 
   useEffect(() => {
-    fetchAuditEvents(quoteId)
-      .then((r) => setEvents(r.events))
+    setLoading(true)
+    fetchAuditEvents(quoteId, page, 20)
+      .then((r) => {
+        setEvents(r.items)
+        setPageCount(r.pageCount)
+        setTotal(r.total)
+      })
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load audit'))
       .finally(() => setLoading(false))
-  }, [quoteId])
+  }, [quoteId, page])
 
-  if (loading) return <p className="text-sm text-[#6b7280]">Loading audit trail…</p>
-  if (error) return <p className="text-sm text-[#c62828]">{error}</p>
+  if (loading) return <p className="text-sm text-[var(--color-muted)]">Loading audit trail…</p>
+  if (error) return <p className="text-sm text-[var(--color-danger)]">{error}</p>
 
   return (
     <Card padding={false}>
@@ -662,13 +658,16 @@ function AuditTab({ quoteId }: { quoteId: string }) {
             <Tr key={e.id}>
               <Td className="text-xs">{new Date(e.createdAt).toLocaleString()}</Td>
               <Td className="font-mono text-xs">{e.type}</Td>
-              <Td className="text-xs text-[#6b7280] max-w-md truncate">
+              <Td className="text-xs text-[var(--color-muted)] max-w-md truncate">
                 {JSON.stringify(e.payload)}
               </Td>
             </Tr>
           ))}
         </tbody>
       </Table>
+      <div className="px-4 pb-3">
+        <Pagination page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
+      </div>
     </Card>
   )
 }
@@ -714,13 +713,13 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
           subtitle="Compare actual risk/routing vs a hypothetical discount ceiling (from event log or current quote lines)"
         />
         {quote.lines.length === 0 && (
-          <p className="text-sm text-[#ed6c02] mb-3">
+          <p className="text-sm text-[var(--color-warning)] mb-3">
             No line items on this quote yet — add products on the Quote tab first.
           </p>
         )}
         <div className="grid md:grid-cols-3 gap-3 mb-2">
           <div>
-            <label className="text-xs text-[#6b7280]">Customer tier</label>
+            <label className="text-xs text-[var(--color-muted)]">Customer tier</label>
             <input
               className="w-full px-3 py-2 border rounded text-sm mt-1"
               value={tier}
@@ -729,7 +728,7 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
             />
           </div>
           <div>
-            <label className="text-xs text-[#6b7280]">Product category</label>
+            <label className="text-xs text-[var(--color-muted)]">Product category</label>
             <input
               className="w-full px-3 py-2 border rounded text-sm mt-1"
               value={category}
@@ -742,7 +741,7 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
             </datalist>
           </div>
           <div>
-            <label className="text-xs text-[#6b7280]">Hypothetical ceiling %</label>
+            <label className="text-xs text-[var(--color-muted)]">Hypothetical ceiling %</label>
             <input
               type="number"
               className="w-full px-3 py-2 border rounded text-sm mt-1"
@@ -751,7 +750,7 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
             />
           </div>
         </div>
-        <p className="text-xs text-[#6b7280] mb-4">
+        <p className="text-xs text-[var(--color-muted)] mb-4">
           Customer is <strong>{customerTier}</strong> tier
           {lineCategories.length > 0 && <> · categories on quote: {lineCategories.join(', ')}</>}.
           Override only applies when tier matches the customer.
@@ -763,22 +762,22 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
       {result && (
         <div className="space-y-3">
           {result.replaySource === 'snapshot' && (
-            <p className="text-xs text-[#6b7280] bg-[#fff4e5] border border-[#ffe0b2] rounded px-3 py-2">
+            <p className="text-xs text-[var(--color-muted)] bg-[var(--color-warning-bg)] border border-[var(--color-warning)] rounded px-3 py-2">
               No audit events for this quote — replay used current line items (common for seed data).
             </p>
           )}
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
-              <p className="text-xs text-[#6b7280] uppercase">Actual</p>
+              <p className="text-xs text-[var(--color-muted)] uppercase">Actual</p>
               <p className="text-2xl font-bold">{formatRiskPercent(result.actual.riskScore)}</p>
               <p className="text-sm mt-2">{result.actual.routing.join(' → ') || 'Auto-approved'}</p>
             </Card>
             <Card>
-              <p className="text-xs text-[#6b7280] uppercase">Hypothetical</p>
+              <p className="text-xs text-[var(--color-muted)] uppercase">Hypothetical</p>
               <p className="text-2xl font-bold">{formatRiskPercent(result.hypothetical.riskScore)}</p>
               <p className="text-sm mt-2">{result.hypothetical.routing.join(' → ') || 'Auto-approved'}</p>
               {result.changed && (
-                <p className="text-xs text-[#ed6c02] mt-2">Routing or risk would change under this ceiling</p>
+                <p className="text-xs text-[var(--color-warning)] mt-2">Routing or risk would change under this ceiling</p>
               )}
             </Card>
           </div>
@@ -790,18 +789,16 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
 
 function ChangeRequestsTab({
   quote,
-  user,
   onQuoteUpdated,
   showToast,
 }: {
   quote: ApiQuote
-  user: AppUser
   onQuoteUpdated: () => void
   showToast: (m: string) => void
 }) {
   const [requests, setRequests] = useState<ApiChangeRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const canRespond = canRespondToChangeRequests(user.role)
+  const canRespond = usePermission('changeRequest.respond')
 
   const load = () => {
     fetchChangeRequests(quote.id)
@@ -825,7 +822,7 @@ function ChangeRequestsTab({
     }
   }
 
-  if (loading) return <p className="text-sm text-[#6b7280]">Loading change requests…</p>
+  if (loading) return <p className="text-sm text-[var(--color-muted)]">Loading change requests…</p>
 
   return (
     <Card padding={false}>
@@ -835,7 +832,7 @@ function ChangeRequestsTab({
         </thead>
         <tbody>
           {requests.length === 0 ? (
-            <tr><Td colSpan={5} className="text-center py-6 text-[#6b7280]">No change requests</Td></tr>
+            <tr><Td colSpan={5} className="text-center py-6 text-[var(--color-muted)]">No change requests</Td></tr>
           ) : (
             requests.map((r) => (
               <Tr key={r.id}>
@@ -849,8 +846,6 @@ function ChangeRequestsTab({
                       <Button size="sm" onClick={() => respond(r.id, 'ACCEPTED')}>Accept</Button>
                       <Button size="sm" variant="secondary" onClick={() => respond(r.id, 'REJECTED')}>Reject</Button>
                     </div>
-                  ) : r.status === 'PENDING' && !canRespond ? (
-                    <span className="text-xs text-[#6b7280]">Rep only</span>
                   ) : null}
                 </Td>
               </Tr>

@@ -28,16 +28,15 @@ export function timeAgo(date: string) {
 
 /** Time-of-day greeting based on current hour in IST (Asia/Kolkata). */
 export function getIstGreeting(): string {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      hour: 'numeric',
-      hour12: false,
-    }).format(new Date()),
-  )
+  const hourPart = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date()).find((p) => p.type === 'hour')
+  const hour = Number(hourPart?.value ?? 0)
 
-  if (hour >= 5 && hour < 12) return 'Good morning'
-  if (hour >= 12 && hour < 17) return 'Good afternoon'
-  if (hour >= 17 && hour < 21) return 'Good evening'
+  if (hour >= 5 && hour <= 11) return 'Good morning'
+  if (hour >= 12 && hour <= 16) return 'Good afternoon'
+  if (hour >= 17 && hour <= 21) return 'Good evening'
   return 'Good night'
 }

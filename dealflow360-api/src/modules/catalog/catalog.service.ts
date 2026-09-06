@@ -1,7 +1,22 @@
 import { prisma } from '../../db/client.js'
+import { paginateParams, paginatedResult } from '../../core/pagination.js'
 
-export async function listProducts() {
-  return prisma.product.findMany({ orderBy: { name: 'asc' } })
+export async function listProducts(filters: { page?: number; limit?: number; search?: string } = {}) {
+  const { skip, take, page, limit } = paginateParams(filters.page, filters.limit)
+  const where = filters.search
+    ? {
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' as const } },
+          { category: { contains: filters.search, mode: 'insensitive' as const } },
+        ],
+      }
+    : {}
+
+  const [items, total] = await Promise.all([
+    prisma.product.findMany({ where, orderBy: { name: 'asc' }, skip, take }),
+    prisma.product.count({ where }),
+  ])
+  return paginatedResult(items, total, page, limit)
 }
 
 export async function createProduct(data: {

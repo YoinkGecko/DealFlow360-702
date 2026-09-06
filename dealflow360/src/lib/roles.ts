@@ -1,27 +1,27 @@
 import type { UserRole } from '../data/mock'
-
+import { can } from './permissions'
 export function canDecideApprovals(role: UserRole): boolean {
-  return role === 'manager' || role === 'finance' || role === 'admin'
+  return can(role, 'approval.decide')
 }
 
 export function canAllocateFulfillment(role: UserRole): boolean {
-  return role === 'sales_rep' || role === 'manager' || role === 'admin'
+  return can(role, 'fulfillment.allocate')
 }
 
 export function canRespondToChangeRequests(role: UserRole): boolean {
-  return role === 'sales_rep' || role === 'admin'
+  return can(role, 'changeRequest.respond')
 }
 
 export function canCreateQuote(role: UserRole): boolean {
-  return role === 'sales_rep' || role === 'admin'
+  return can(role, 'quote.create')
 }
 
 export function canSendToCustomer(role: UserRole): boolean {
-  return role === 'sales_rep' || role === 'admin'
+  return can(role, 'quote.sendToCustomer')
 }
 
 export function canManageBilling(role: UserRole): boolean {
-  return role === 'sales_rep' || role === 'finance' || role === 'admin'
+  return can(role, 'billing.manage')
 }
 
 export function approvalRoleMatchesUser(approverRole: string, userRole: UserRole): boolean {
@@ -35,3 +35,5 @@ export function approvalRoleMatchesUser(approverRole: string, userRole: UserRole
   }
   return map[userRole] === approverRole
 }
+
+export { can } from './permissions'

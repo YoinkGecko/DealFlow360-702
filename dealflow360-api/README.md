@@ -25,6 +25,14 @@ npm run dev
 
 **OpenAPI JSON:** [http://localhost:3000/docs/json](http://localhost:3000/docs/json)
 
+**Frontend (separate terminal):**
+
+```bash
+cd dealflow360
+npm install
+npm run dev   # http://localhost:5173
+```
+
 ## Seeded test users
 
 | Role    | Email                     | Password    |
@@ -34,7 +42,112 @@ npm run dev
 | FINANCE | finance@dealflow360.test  | password123 |
 | ADMIN   | admin@dealflow360.test    | password123 |
 
-After `npm run seed`, the console prints the **Gold customer ID** and **product IDs**.
+## Re-running the seed
+
+```bash
+cd dealflow360-api
+npm run seed
+```
+
+The seed script **clears and rebuilds** demo data. Console output prints IDs you need for demos (customer, products, plan, anomaly quote, stalled quote, backorder quote, portal token, etc.).
+
+### What the seed includes (computed via real services)
+
+| Table / feature | How it is seeded |
+|-----------------|------------------|
+| **Users, customers, products, warehouses, stock** | Hand-authored baseline records |
+| **Historical CONFIRMED quotes** | Real `computeQuoteBlendedRisk()` + decided **Approval** rows from `routeForRiskScore()` |
+| **Allocation** | `allocateQuoteFulfillment()` on 3+ confirmed quotes (real warehouse splits) |
+| **Backorder** | Quote with 30 laptops vs 25 total stock → backorder from same allocator |
+| **LedgerLine** | `addSubscriptionToQuote()` → `RECURRING_CHARGE`; `changeSubscriptionQuantity()` → `PRORATED_CHARGE` |
+| **QuoteStageTransition** | Backfilled for all CONFIRMED quotes (Deal Health) |
+| **Stalled quote** | `applyApprovalRouting()` → live PENDING approvals |
+| **ChangeRequest** | PENDING on stalled quote; ACCEPTED on negotiation SENT quote |
+| **PortalSession** | Token `seed-portal-{quoteId-prefix}` on negotiation quote |
+| **Co-occurrence / recs** | Recomputed from CONFIRMED quote history |
+
+Optional maintenance scripts:
+
+```bash
+npm run seed:stage-transitions      # Re-backfill stage transitions
+npm run seed:recompute-cooccurrence # Rebuild recommendation pairs
+```
+
+## Permissions model (backend + frontend)
+
+Frontend mirrors these in `dealflow360/src/lib/permissions.ts` (`usePermission` / `<Can action="...">`).
+
+| Action | Allowed roles | API guard |
+|--------|---------------|-----------|
+| Create deal | sales_rep, admin | `POST /quotes` |
+| Add / edit quote lines | sales_rep, admin | `POST/PATCH /quotes/:id/lines` |
+| Submit for approval | sales_rep, admin | `POST /quotes/:id/submit` |
+| Send to customer portal | sales_rep, admin | `POST /quotes/:id/send` |
+| Approve / reject / request changes | manager, finance, admin | `POST /quotes/:id/approvals/:id/decide` |
+| Respond to change requests | sales_rep, admin | `POST /quotes/:id/change-requests/:id/respond` |
+| Allocate fulfillment | sales_rep, manager, admin | `POST /quotes/:id/fulfillment/allocate` |
+| Billing (attach sub, qty change) | sales_rep, finance, admin | `POST/PATCH /quotes/:id/subscriptions` |
+| Create product | admin | `POST /products` |
+| Create customer | sales_rep, admin | `POST /customers` |
+| Edit policies (ceilings, chains) | admin | `POST /policy/*` |
+| Admin settings / warehouses nav | admin | UI-only routes |
+
+Unauthorized write controls are **hidden** in the UI (not shown as disabled buttons).
+
+## Pagination (server-side)
+
+List endpoints return `{ items, total, page, limit, pageCount }`:
+
+| Endpoint | Used on screen |
+|----------|----------------|
+| `GET /quotes` | Deals list, Approvals queue |
+| `GET /products` | Products |
+| `GET /customers` | Customers |
+| `GET /audit/quotes/:id` | Deal workspace → Audit tab |
+
+Deal Health anomaly/stalled lists use client-side pagination (small fixed datasets).
+
+## Search
+
+| Screen | Behavior |
+|--------|----------|
+| Deals | `search` query param on `GET /quotes` (customer name) |
+| Customers | `search` on `GET /customers` |
+| Products | `search` on `GET /products` |
+| Top-bar search | Navigates to `/app/deals?search=…` |
+
+## Dark / light mode (frontend)
+
+Toggle the **sun/moon icon** in the top navigation bar. Preference is stored in `localStorage` and applied via `data-theme` on `<html>`. The customer portal (`/portal/quote/:token`) has its own theme toggle and uses the same CSS variables.
+
+---
+
+## Demo walkthrough — Flow A (approval chain)
+
+**Roles:** Rep → Manager (→ Finance if high risk)
+
+1. Log in as **rep@dealflow360.test** / `password123`
+2. **Deals** → **New Deal** → pick a Gold customer → **Create Deal**
+3. On the **Quote** tab → **Add Product** → add a Hardware line (low discount) and a Service line with **discount above the Gold/Service ceiling** (e.g. 22%)
+4. Confirm the risk panel updates → **Submit for Approval**
+5. Log out → log in as **manager@dealflow360.test**
+6. **Approvals** → open the deal → enter a **reason** → **Approve**
+7. If risk is high enough, log in as **finance@dealflow360.test** and approve the Finance step
+8. Open the deal → **Audit** tab → verify events: `QuoteCreated` → `LineAdded` → `RiskScoreComputed` → `ApprovalRequested` → `ApprovalDecided`
+
+## Demo walkthrough — Flow B (fulfillment + billing)
+
+**Role:** Rep (and Finance for ledger if needed)
+
+1. Open a **CONFIRMED** seeded deal (or complete Flow A and confirm), e.g. quote with subscription from seed output
+2. **Fulfillment** tab → **Allocate** → see warehouse split per line
+3. For backorder demo: open seeded **backorder quote** from seed console → Allocate → see backordered quantity
+4. **Billing** tab → attach subscription (plan UUID from seed) or view existing ledger
+5. **Apply Qty Change** mid-cycle → **Audit** / ledger shows `RECURRING_CHARGE` and `PRORATED_CHARGE`
+
+**Portal negotiation (optional):** `/portal/quote/seed-portal-{prefix}` from seed output → submit change request → Rep responds on **Approvals** or deal **Changes** tab.
+
+---
 
 ## 2-minute Swagger walkthrough (discount → approval flow)
 

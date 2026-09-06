@@ -101,12 +101,23 @@ export async function quotesRoutes(app: FastifyInstance) {
         tags: ['Quotes'],
         security: [{ bearerAuth: [] }],
         querystring: listQuotesQuerySchema,
-        response: { 200: z.array(quoteDetailSchema) },
+        response: {
+          200: z.object({
+            items: z.array(quoteDetailSchema),
+            total: z.number().int(),
+            page: z.number().int(),
+            limit: z.number().int(),
+            pageCount: z.number().int(),
+          }),
+        },
       },
     },
     async (request) => {
-      const quotes = await quotesService.listQuotes(request.query)
-      return quotes.map(serializeQuote)
+      const result = await quotesService.listQuotes(request.query)
+      return {
+        ...result,
+        items: result.items.map(serializeQuote),
+      }
     },
   )
 

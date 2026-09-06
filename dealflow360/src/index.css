@@ -1,23 +1,118 @@
 @import "tailwindcss";
 
-@theme {
+/* ─── Design tokens (light = default) ───────────────────────────────────── */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* Surfaces */
+  --color-bg: #f4f5f7;
+  --color-bg-subtle: #eef0f3;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+
+  /* Text */
+  --color-text: #1f2328;
+  --color-text-secondary: #4b5563;
+  --color-muted: #6b7280;
+
+  /* Borders & interaction */
+  --color-border: #d8dce3;
+  --color-hover: #eef0f3;
+  --color-overlay: rgba(15, 17, 20, 0.45);
+
+  /* Form controls */
+  --color-input-bg: #ffffff;
+  --color-input-text: #1f2328;
+  --color-input-border: #d8dce3;
+  --color-input-placeholder: #9ca3af;
+
+  /* Brand & semantic */
   --color-brand: #1565c0;
   --color-brand-hover: #0d47a1;
-  --color-brand-light: #e3f2fd;
-  --color-surface: #ffffff;
-  --color-bg: #f5f6f8;
-  --color-border: #e8eaed;
-  --color-text: #1a1d21;
-  --color-muted: #6b7280;
+  --color-brand-light: #e8f1fb;
+  --color-on-brand: #ffffff;
+
   --color-success: #2e7d32;
   --color-success-bg: #e8f5e9;
-  --color-warning: #ed6c02;
+  --color-warning: #e65100;
   --color-warning-bg: #fff4e5;
   --color-danger: #c62828;
   --color-danger-bg: #ffebee;
   --color-info: #1565c0;
-  --color-info-bg: #e3f2fd;
+  --color-info-bg: #e8f1fb;
+
+  /* Navigation & tables */
+  --color-nav-active-bg: #e8f1fb;
+  --color-nav-active-text: #1565c0;
+  --color-table-header-bg: #f8f9fb;
+  --color-table-row-hover: #f4f6f8;
+
+  /* Role badges */
+  --color-badge-rep-bg: #e8f1fb;
+  --color-badge-rep-text: #1565c0;
+  --color-badge-manager-bg: #fff3e0;
+  --color-badge-manager-text: #e65100;
+  --color-badge-finance-bg: #f3e5f5;
+  --color-badge-finance-text: #7b1fa2;
+  --color-badge-admin-bg: #e8f5e9;
+  --color-badge-admin-text: #2e7d32;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #14171b;
+  --color-bg-subtle: #1c1f24;
+  --color-surface: #1c1f24;
+  --color-surface-raised: #252a31;
+
+  --color-text: #e8eaed;
+  --color-text-secondary: #b8bcc4;
+  --color-muted: #9aa0ab;
+
+  --color-border: #3a4149;
+  --color-hover: #2a3038;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  --color-input-bg: #252a31;
+  --color-input-text: #e8eaed;
+  --color-input-border: #3a4149;
+  --color-input-placeholder: #7a828e;
+
+  --color-brand: #64b5f6;
+  --color-brand-hover: #42a5f5;
+  --color-brand-light: #1a2d42;
+  --color-on-brand: #0f1114;
+
+  --color-success: #66bb6a;
+  --color-success-bg: #1b3d24;
+  --color-warning: #ffb74d;
+  --color-warning-bg: #3d2e14;
+  --color-danger: #ef5350;
+  --color-danger-bg: #3d1f1f;
+  --color-info: #64b5f6;
+  --color-info-bg: #1a2d42;
+
+  --color-nav-active-bg: #1a2d42;
+  --color-nav-active-text: #90caf9;
+  --color-table-header-bg: #1f242b;
+  --color-table-row-hover: #252a31;
+
+  --color-badge-rep-bg: #1a2d42;
+  --color-badge-rep-text: #90caf9;
+  --color-badge-manager-bg: #3d2e14;
+  --color-badge-manager-text: #ffb74d;
+  --color-badge-finance-bg: #2d1f3d;
+  --color-badge-finance-text: #ce93d8;
+  --color-badge-admin-bg: #1b3d24;
+  --color-badge-admin-text: #81c784;
+}
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -29,10 +124,34 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
-body {
+body,
+#root {
   margin: 0;
+  min-height: 100vh;
   background: var(--color-bg);
   color: var(--color-text);
+}
+
+/* Global form controls — prevents inherited text color bugs */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+textarea,
+select {
+  background-color: var(--color-input-bg);
+  color: var(--color-input-text);
+  border-color: var(--color-input-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-input-placeholder);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-input-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-input-bg) inset;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 ::-webkit-scrollbar {
@@ -41,7 +160,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c5c9d0;
+  background: var(--color-border);
   border-radius: 3px;
 }
 

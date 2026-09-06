@@ -14,10 +14,13 @@ import { avgDiscount, riskLevelFromScore, shortQuoteId, stageIndexFromStatus, ST
 import { createQuote, fetchCustomers, fetchQuote, fetchQuotes } from '../../lib/quotes-api'
 import type { ApiCustomer, ApiQuote } from '../../lib/types'
 import { canCreateQuote } from '../../lib/roles'
+import { Can } from '../../components/ui/Can'
+import { Pagination } from '../../components/ui/Pagination'
 import { formatCurrency, timeAgo } from '../../lib/utils'
 
 export function DealsPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user, showToast } = useApp()
   const [tab, setTab] = useState('all')
   const [quotes, setQuotes] = useState<ApiQuote[]>([])
@@ -28,19 +31,40 @@ export function DealsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [creating, setCreating] = useState(false)
 
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [pageCount, setPageCount] = useState(1)
+  const [total, setTotal] = useState(0)
+
+  useEffect(() => {
+    const q = searchParams.get('search')
+    if (q) setSearch(q)
+  }, [searchParams])
+
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const tabDef = STATUS_TABS.find((t) => t.key === tab)
-      const data = await fetchQuotes(tabDef?.status)
-      setQuotes(data)
+      const data = await fetchQuotes({
+        status: tabDef?.status,
+        page,
+        limit: 20,
+        search: search.trim() || undefined,
+      })
+      setQuotes(data.items)
+      setPageCount(data.pageCount)
+      setTotal(data.total)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load deals')
     } finally {
       setLoading(false)
     }
-  }, [tab])
+  }, [tab, page, search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [tab, search])
 
   useEffect(() => {
     load()
@@ -48,9 +72,9 @@ export function DealsPage() {
 
   const openNewDeal = async () => {
     try {
-      const list = await fetchCustomers()
-      setCustomers(list)
-      setSelectedCustomer(list[0]?.id ?? '')
+      const list = await fetchCustomers({ limit: 100 })
+      setCustomers(list.items)
+      setSelectedCustomer(list.items[0]?.id ?? '')
       setShowNew(true)
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Failed to load customers')
@@ -77,11 +101,21 @@ export function DealsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Deals</h1>
         {canCreateQuote(user.role) && (
-          <Button size="sm" onClick={openNewDeal}>
-            <Plus className="w-4 h-4" /> New Deal
-          </Button>
+          <Can action="quote.create">
+            <Button size="sm" onClick={openNewDeal}>
+              <Plus className="w-4 h-4" /> New Deal
+            </Button>
+          </Can>
         )}
       </div>
+
+      <input
+        type="search"
+        placeholder="Search by customer name…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full max-w-md px-3 py-2 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface)]"
+      />
 
       <div className="flex gap-1 overflow-x-auto pb-1">
         {STATUS_TABS.map((t) => (
@@ -89,7 +123,7 @@ export function DealsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap ${
-              tab === t.key ? 'bg-[#1565C0] text-white' : 'bg-white border border-[#e8eaed] text-[#6b7280]'
+              tab === t.key ? 'bg-[var(--color-brand)] text-[var(--color-on-brand)]' : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-muted)]'
             }`}
           >
             {t.key === 'all' ? 'All' : formatQuoteStatus(t.status!)}
@@ -98,13 +132,13 @@ export function DealsPage() {
       </div>
 
       {error && (
-        <div className="text-sm text-[#c62828] bg-[#ffebee] border border-[#ffcdd2] rounded-md px-3 py-2">
+        <div className="text-sm text-[var(--color-danger)] bg-[var(--color-danger-bg)] border border-[var(--color-danger)] rounded-md px-3 py-2">
           {error}
         </div>
       )}
 
       {loading ? (
-        <p className="text-sm text-[#6b7280]">Loading deals…</p>
+        <p className="text-sm text-[var(--color-muted)]">Loading deals…</p>
       ) : (
         <Card padding={false}>
           <Table>
@@ -117,7 +151,7 @@ export function DealsPage() {
             <tbody>
               {quotes.length === 0 ? (
                 <tr>
-                  <Td colSpan={8} className="text-center text-[#6b7280] py-8">
+                  <Td colSpan={8} className="text-center text-[var(--color-muted)] py-8">
                     No deals found
                   </Td>
                 </tr>
@@ -125,7 +159,7 @@ export function DealsPage() {
                 quotes.map((q) => (
                   <Tr key={q.id}>
                     <Td>
-                      <Link to={`/app/deals/${q.id}`} className="text-[#1565C0] font-medium">
+                      <Link to={`/app/deals/${q.id}`} className="text-[var(--color-brand)] font-medium">
                         {shortQuoteId(q.id)}
                       </Link>
                     </Td>
@@ -134,7 +168,7 @@ export function DealsPage() {
                     <Td>{avgDiscount(q.lines).toFixed(1)}%</Td>
                     <Td><RiskBadge level={riskLevelFromScore(q.blendedRiskScore)} /></Td>
                     <Td><StageBadge stage={q.status} /></Td>
-                    <Td className="text-xs text-[#6b7280]">{timeAgo(q.updatedAt)}</Td>
+                    <Td className="text-xs text-[var(--color-muted)]">{timeAgo(q.updatedAt)}</Td>
                     <Td>
                       <Link to={`/app/deals/${q.id}`}>
                         <Button variant="ghost" size="sm">Open</Button>
@@ -145,6 +179,9 @@ export function DealsPage() {
               )}
             </tbody>
           </Table>
+          <div className="px-4 pb-3">
+            <Pagination page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
+          </div>
         </Card>
       )}
 
@@ -153,7 +190,7 @@ export function DealsPage() {
           <div>
             <label className="text-sm font-medium">Customer</label>
             <select
-              className="mt-1 w-full px-3 py-2 border border-[#e8eaed] rounded-md text-sm"
+              className="mt-1 w-full px-3 py-2 border border-[var(--color-border)] rounded-md text-sm"
               value={selectedCustomer}
               onChange={(e) => setSelectedCustomer(e.target.value)}
             >
@@ -182,7 +219,7 @@ export function DealWorkspacePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { user, showToast } = useApp()
+  const { showToast } = useApp()
   const [quote, setQuote] = useState<ApiQuote | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -215,13 +252,13 @@ export function DealWorkspacePage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-[#6b7280]">Loading deal…</p>
+    return <p className="text-sm text-[var(--color-muted)]">Loading deal…</p>
   }
 
   if (error || !quote) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-[#c62828]">{error || 'Deal not found'}</p>
+        <p className="text-sm text-[var(--color-danger)]">{error || 'Deal not found'}</p>
         <Button variant="secondary" onClick={() => navigate('/app/deals')}>Back to Deals</Button>
       </div>
     )
@@ -231,11 +268,11 @@ export function DealWorkspacePage() {
     <div className="space-y-4 animate-in">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <button onClick={() => navigate('/app/deals')} className="text-xs text-[#1565C0] mb-1">
+          <button onClick={() => navigate('/app/deals')} className="text-xs text-[var(--color-brand)] mb-1">
             ← Back to Deals
           </button>
           <h1 className="text-xl font-semibold">Deal {shortQuoteId(quote.id)}</h1>
-          <p className="text-sm text-[#6b7280]">
+          <p className="text-sm text-[var(--color-muted)]">
             {quote.customer?.name ?? 'Customer'} · <StageBadge stage={quote.status} />
           </p>
         </div>
@@ -243,15 +280,15 @@ export function DealWorkspacePage() {
 
       <LifecycleStepper current={stageIndexFromStatus(quote.status)} />
 
-      <div className="flex gap-1 flex-wrap border-b border-[#e8eaed] pb-1">
+      <div className="flex gap-1 flex-wrap border-b border-[var(--color-border)] pb-1">
         {WORKSPACE_TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-1.5 text-xs font-medium capitalize rounded-t ${
               activeTab === t
-                ? 'bg-white border border-[#e8eaed] border-b-white -mb-px text-[#1565C0]'
-                : 'text-[#6b7280]'
+                ? 'bg-[var(--color-surface)] border border-[var(--color-border)] border-b-[var(--color-surface)] -mb-px text-[var(--color-brand)]'
+                : 'text-[var(--color-muted)]'
             }`}
           >
             {t.replace('-', ' ')}
@@ -262,7 +299,6 @@ export function DealWorkspacePage() {
       <DealWorkspaceTabs
         activeTab={activeTab}
         quote={quote}
-        user={user}
         savingLine={savingLine}
         actionLoading={actionLoading}
         onQuoteUpdated={loadQuote}

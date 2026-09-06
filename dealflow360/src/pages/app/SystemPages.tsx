@@ -17,13 +17,15 @@ export function WarehousesPage() {
   return (
     <div className="space-y-4 animate-in">
       <h1 className="text-xl font-semibold">Warehouses</h1>
-      <p className="text-sm text-[#6b7280]">Configure warehouse locations, stock levels, and shipping cost weighting.</p>
+      <p className="text-sm text-[var(--color-muted)]">Configure warehouse locations, stock levels, and shipping cost weighting.</p>
       <div className="grid md:grid-cols-2 gap-4">
         {['Delhi DC', 'Mumbai DC', 'Pune DC', 'Bangalore DC'].map((w) => (
           <Card key={w}>
             <h3 className="font-semibold">{w}</h3>
-            <p className="text-xs text-[#6b7280] mt-1">Active · Replenishment enabled</p>
-            <Button variant="secondary" size="sm" className="mt-3">Configure</Button>
+            <p className="text-xs text-[var(--color-muted)] mt-1">Active · Replenishment enabled</p>
+            <Button variant="secondary" size="sm" className="mt-3" disabled title="Coming soon">
+              Configure
+            </Button>
           </Card>
         ))}
       </div>
@@ -50,7 +52,7 @@ export function HelpPage() {
   return (
     <Card className="animate-in">
       <h1 className="text-xl font-semibold">Help & Documentation</h1>
-      <p className="text-sm text-[#6b7280] mt-2">DealFlow360 documentation and support resources.</p>
+      <p className="text-sm text-[var(--color-muted)] mt-2">DealFlow360 documentation and support resources.</p>
       <ul className="mt-4 space-y-2 text-sm">
         <li>• Getting started with discount governance</li>
         <li>• Configuring approval chains</li>
@@ -83,18 +85,18 @@ export function ProfilePage() {
     <div className="space-y-6 animate-in max-w-3xl">
       <div>
         <h1 className="text-xl font-semibold">My Profile</h1>
-        <p className="text-sm text-[#6b7280] mt-1">Manage your account information and preferences.</p>
+        <p className="text-sm text-[var(--color-muted)] mt-1">Manage your account information and preferences.</p>
       </div>
 
       <Card>
         <div className="flex items-start gap-5">
-          <div className="w-16 h-16 rounded-full bg-[#1565C0] text-white text-2xl flex items-center justify-center font-semibold shrink-0">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-brand)] text-[var(--color-on-brand)] text-2xl flex items-center justify-center font-semibold shrink-0">
             {user.name.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold truncate">{user.name}</h2>
-            <p className="text-sm text-[#6b7280] truncate">{user.email}</p>
-            <span className="inline-flex mt-2 items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#e8f5e9] text-[#2e7d32]">
+            <p className="text-sm text-[var(--color-muted)] truncate">{user.email}</p>
+            <span className="inline-flex mt-2 items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--color-success-bg)] text-[var(--color-success)]">
               {roleLabels[user.role]}
             </span>
           </div>
@@ -105,28 +107,28 @@ export function ProfilePage() {
         <h3 className="font-semibold text-sm mb-4">Account details</h3>
         <div className="space-y-4 max-w-md">
           <div>
-            <label className="text-xs font-medium text-[#6b7280] uppercase tracking-wide">Full name</label>
-            <p className="mt-1 text-sm text-[#1a1d21]">{user.name}</p>
+            <label className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">Full name</label>
+            <p className="mt-1 text-sm text-[var(--color-text)]">{user.name}</p>
           </div>
           <div>
-            <label className="text-xs font-medium text-[#6b7280] uppercase tracking-wide">Email</label>
-            <p className="mt-1 text-sm text-[#1a1d21]">{user.email}</p>
+            <label className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">Email</label>
+            <p className="mt-1 text-sm text-[var(--color-text)]">{user.email}</p>
           </div>
           <div>
-            <label className="text-xs font-medium text-[#6b7280] uppercase tracking-wide">Role</label>
-            <p className="mt-1 text-sm text-[#1a1d21]">{roleLabels[user.role]}</p>
+            <label className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">Role</label>
+            <p className="mt-1 text-sm text-[var(--color-text)]">{roleLabels[user.role]}</p>
           </div>
           <div>
-            <label className="text-xs font-medium text-[#6b7280] uppercase tracking-wide">User ID</label>
-            <p className="mt-1 text-sm text-[#1a1d21] font-mono text-xs break-all">{user.id}</p>
+            <label className="text-xs font-medium text-[var(--color-muted)] uppercase tracking-wide">User ID</label>
+            <p className="mt-1 text-sm text-[var(--color-text)] font-mono text-xs break-all">{user.id}</p>
           </div>
         </div>
       </Card>
 
       <Card>
         <h3 className="font-semibold text-sm mb-2">Session</h3>
-        <p className="text-sm text-[#6b7280] mb-4">Sign out of DealFlow360 on this device.</p>
-        <Button variant="secondary" onClick={handleLogout} className="text-[#c62828] border-[#ffcdd2] hover:bg-[#ffebee]">
+        <p className="text-sm text-[var(--color-muted)] mb-4">Sign out of DealFlow360 on this device.</p>
+        <Button variant="secondary" onClick={handleLogout} className="text-[var(--color-danger)] border-[var(--color-danger)] hover:bg-[var(--color-danger-bg)]">
           <LogOut className="w-4 h-4 mr-2 inline" />
           Sign out
         </Button>
