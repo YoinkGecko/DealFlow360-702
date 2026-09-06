@@ -1,4 +1,4 @@
-# DealFlow360 API (Phase 4)
+# DealFlow360 API
 
 Event-sourced modular monolith backend for DealFlow360.
 
