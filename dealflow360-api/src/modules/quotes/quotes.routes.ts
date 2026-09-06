@@ -323,7 +323,7 @@ export async function quotesRoutes(app: FastifyInstance) {
   server.get(
     '/quotes/:id/change-requests',
     {
-      onRequest: [app.authenticate, requireRoles('REP', 'ADMIN', 'MANAGER')],
+      onRequest: [app.authenticate, requireRoles('REP', 'ADMIN')],
       schema: {
         tags: ['Quotes'],
         security: [{ bearerAuth: [] }],
@@ -438,6 +438,7 @@ function serializeQuote(quote: Awaited<ReturnType<typeof quotesService.getQuoteD
       ? {
           id: quote.customer.id,
           name: quote.customer.name,
+          email: quote.customer.email,
           tier: { name: quote.customer.tier.name },
         }
       : undefined,

@@ -173,12 +173,16 @@ function QuoteTab({
   }
 
   const handleSend = async () => {
-    const email = prompt('Customer email for portal link:', 'procurement@acmecorp.test')
+    const email = prompt('Customer email for portal link:', quote.customer?.email ?? '')
     if (!email) return
     onActionLoading(true)
     try {
       const res = await sendQuoteToPortal(quote.id, email)
-      showToast(res.message)
+      if (res.emailSent) {
+        alert('Quotation sent to customer')
+      } else {
+        showToast(res.message)
+      }
       if (!res.emailSent && res.link) {
         console.log('[portal] Magic link:', res.link)
       }
@@ -761,9 +765,9 @@ function WhatIfTab({ quote, showToast }: { quote: ApiQuote; showToast: (m: strin
       </Card>
       {result && (
         <div className="space-y-3">
-          {result.replaySource === 'snapshot' && (
+          {result.linesUsedInReplay.length === 0 && (
             <p className="text-xs text-[var(--color-muted)] bg-[var(--color-warning-bg)] border border-[var(--color-warning)] rounded px-3 py-2">
-              No audit events for this quote — replay used current line items (common for seed data).
+              No line events in the audit log — replay needs at least one LineAdded event.
             </p>
           )}
           <div className="grid md:grid-cols-2 gap-4">

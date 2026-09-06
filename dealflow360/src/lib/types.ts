@@ -59,7 +59,7 @@ export interface ApiQuote {
   updatedAt: string
   lines: ApiQuoteLine[]
   approvals: ApiApproval[]
-  customer?: { id: string; name: string; tier: { name: string } }
+  customer?: { id: string; name: string; email?: string; tier: { name: string } }
 }
 
 export interface ApiChangeRequest {
@@ -210,4 +210,12 @@ export interface PaginatedResponse<T> {
   page: number
   limit: number
   pageCount: number
+}
+
+export interface ApiNotification {
+  id: string
+  quoteId: string | null
+  message: string
+  read: boolean
+  time: string
 }

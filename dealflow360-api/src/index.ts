@@ -24,6 +24,7 @@ import { recsRoutes } from './modules/recs/recs.routes.js'
 import { dealHealthRoutes } from './modules/deal-health/deal-health.routes.js'
 import { portalRoutes } from './modules/portal/portal.routes.js'
 import { customersRoutes } from './modules/customers/customers.routes.js'
+import { notificationsRoutes } from './modules/notifications/notifications.routes.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -97,6 +98,7 @@ async function buildServer() {
   await app.register(dealHealthRoutes)
   await app.register(portalRoutes)
   await app.register(customersRoutes)
+  await app.register(notificationsRoutes)
 
   return app
 }

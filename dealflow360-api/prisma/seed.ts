@@ -233,7 +233,7 @@ async function main() {
   const acme = await prisma.customer.create({
     data: {
       name: 'Acme Corporation',
-      email: 'procurement@acmecorp.test',
+      email: 'kartikeya.for.odoo@gmail.com',
       customerTierId: gold.id,
     },
   })

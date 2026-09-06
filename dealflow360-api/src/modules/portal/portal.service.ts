@@ -13,7 +13,8 @@ import {
   getQuoteDetail,
   recomputeQuoteRisk,
 } from '../quotes/quotes.service.js'
-import { buildPortalMagicLink, sendMagicLinkEmail } from './portal-auth.js'
+import { buildPortalMagicLink, sendQuotationPortalEmail } from './portal-auth.js'
+import { createNotification } from '../notifications/notifications.service.js'
 
 const PORTAL_TOKEN_TTL_MS = 2 * 60 * 60 * 1000
 
@@ -31,10 +32,14 @@ export async function requestPortalAccess(
   app: FastifyInstance,
   quoteId: string,
   customerEmail: string,
+  actorUserId: string,
 ) {
   const quote = await prisma.quote.findUnique({
     where: { id: quoteId },
-    include: { customer: true },
+    include: {
+      customer: { include: { tier: true } },
+      lines: { include: { product: true } },
+    },
   })
 
   if (!quote) {
@@ -44,6 +49,19 @@ export async function requestPortalAccess(
   if (quote.customer.email.toLowerCase() !== customerEmail.toLowerCase()) {
     throw Object.assign(new Error('Email does not match quote customer'), { statusCode: 403 })
   }
+
+  if (quote.status !== 'APPROVED' && quote.status !== 'SENT' && quote.status !== 'UNDER_NEGOTIATION') {
+    throw Object.assign(
+      new Error('Quote must be APPROVED before sending to the customer portal'),
+      { statusCode: 400 },
+    )
+  }
+
+  if (quote.lines.length === 0) {
+    throw Object.assign(new Error('Cannot send quote with no line items'), { statusCode: 400 })
+  }
+
+  const rep = await prisma.user.findUnique({ where: { id: quote.repUserId } })
 
   const expiresAt = new Date(Date.now() + PORTAL_TOKEN_TTL_MS)
   const token = app.jwt.sign(
@@ -64,8 +82,57 @@ export async function requestPortalAccess(
     },
   })
 
+  if (quote.status === 'APPROVED') {
+    await appendEvent({
+      aggregateId: quoteId,
+      aggregateType: 'Quote',
+      type: 'QuoteSent',
+      payload: { sentAt: new Date().toISOString(), customerEmail },
+      actorUserId,
+    })
+    await prisma.quote.update({
+      where: { id: quoteId },
+      data: { status: 'SENT' },
+    })
+  }
+
   const link = buildPortalMagicLink(token)
-  const emailSent = await sendMagicLinkEmail(customerEmail, link, quote.id)
+  const quoteRef = quote.id.slice(0, 8).toUpperCase()
+  const totalAmount = quote.lines.reduce(
+    (sum, line) => sum + decimalToNumber(line.lineValue),
+    0,
+  )
+  const validUntil = new Date(quote.createdAt)
+  validUntil.setDate(validUntil.getDate() + 30)
+
+  const emailSent = await sendQuotationPortalEmail(customerEmail, {
+    customerName: quote.customer.name,
+    lines: quote.lines.map((line) => ({
+      productName: line.product.name,
+      quantity: line.quantity,
+      amount: decimalToNumber(line.lineValue),
+    })),
+    totalAmount,
+    validUntil: validUntil.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }),
+    salesRepName: rep?.name ?? 'Your Sales Representative',
+    companyName: process.env.COMPANY_NAME ?? 'Acme Sales India Pvt Ltd',
+    phone: process.env.COMPANY_PHONE ?? '+91 98765 43210',
+    email: rep?.email ?? process.env.SMTP_USER ?? 'sales@dealflow360.test',
+    portalLink: link,
+    quoteRef,
+  })
+
+  await createNotification({
+    userId: quote.repUserId,
+    quoteId: quote.id,
+    message: emailSent
+      ? `Quotation emailed to ${quote.customer.name} (${customerEmail})`
+      : `Portal link created for ${quote.customer.name} — email not sent (check SMTP config)`,
+  })
 
   const baseResponse = {
     linkSentTo: customerEmail,
@@ -77,19 +144,19 @@ export async function requestPortalAccess(
   if (emailSent) {
     return {
       ...baseResponse,
-      message: 'Magic link sent to customer email.',
+      message: 'Quotation sent to customer email with portal link.',
     }
   }
 
-  console.log('[portal] Magic link (dev fallback — no Resend or send failed):', link)
+  console.log('[portal] Magic link (SMTP not configured or send failed):', link)
   console.log('[portal] Raw token for API routes:', token)
 
   return {
     ...baseResponse,
     token,
     link,
-    message:
-      'Email not configured or send failed — magic link logged to console and returned in response for local testing.',
+      message:
+      'SMTP not configured or send failed — magic link logged to console and returned in response for local testing.',
   }
 }
 
@@ -223,6 +290,18 @@ export async function submitChangeRequest(
     actorUserId: null,
   })
 
+  const quoteWithRep = await prisma.quote.findUnique({
+    where: { id: payload.quoteId },
+    select: { repUserId: true, customer: { select: { name: true } } },
+  })
+  if (quoteWithRep) {
+    await createNotification({
+      userId: quoteWithRep.repUserId,
+      quoteId: payload.quoteId,
+      message: `${quoteWithRep.customer.name} submitted a ${data.type.replace(/_/g, ' ').toLowerCase()} on the portal`,
+    })
+  }
+
   return changeRequest
 }
 
@@ -240,7 +319,7 @@ export async function listPortalChangeRequests(app: FastifyInstance, token: stri
 export async function listQuoteChangeRequests(quoteId: string) {
   const requests = await prisma.changeRequest.findMany({
     where: { quoteId },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'asc' },
   })
   return requests.map(serializeChangeRequest)
 }
@@ -395,7 +474,10 @@ export async function confirmQuoteFromPortal(app: FastifyInstance, token: string
     )
   }
 
-  const quote = await prisma.quote.findUnique({ where: { id: payload.quoteId } })
+  const quote = await prisma.quote.findUnique({
+    where: { id: payload.quoteId },
+    include: { customer: { select: { name: true } } },
+  })
   if (!quote) {
     throw Object.assign(new Error('Quote not found'), { statusCode: 404 })
   }
@@ -408,6 +490,12 @@ export async function confirmQuoteFromPortal(app: FastifyInstance, token: string
   }
 
   const updated = await emitQuoteConfirmed(payload.quoteId, null)
+
+  await createNotification({
+    userId: quote.repUserId,
+    quoteId: payload.quoteId,
+    message: `${quote.customer.name} confirmed the quotation via the customer portal`,
+  })
 
   return {
     quoteId: updated.id,

@@ -1,66 +1,90 @@
 /**
  * Portal magic-link tokens are short-lived JWTs scoped to a single quoteId + customerId.
- * They are NOT general-purpose customer login tokens.
- *
- * Token creation and verification live in portal.service.ts (uses Fastify JWT).
  */
+
+import nodemailer from 'nodemailer'
+import type SMTPTransport from 'nodemailer/lib/smtp-transport/index.js'
+import {
+  buildQuotationEmailHtml,
+  buildQuotationEmailText,
+  type QuotationEmailContext,
+} from './quotation-email.js'
 
 export const PORTAL_TOKEN_TYPE = 'portal'
 
 export function buildPortalMagicLink(token: string): string {
-  const base = (process.env.PORTAL_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+  const base = (process.env.PORTAL_BASE_URL ?? 'http://localhost:5173').replace(/\/$/, '')
   return `${base}/portal/quote/${token}`
 }
 
+function isSmtpConfigured(): boolean {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+}
+
+function normalizeSmtpPassword(password: string): string {
+  return password.replace(/\s+/g, '')
+}
+
+function createSmtpTransport() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: normalizeSmtpPassword(process.env.SMTP_PASS ?? ''),
+    },
+  } as SMTPTransport.Options)
+}
+
 /**
- * Sends the portal magic-link email via Resend.
- * Returns true when sent successfully, false when skipped or on failure (caller should fall back).
+ * Sends a sales-style quotation email with portal magic link via Nodemailer (SMTP_* env vars).
  */
+export async function sendQuotationPortalEmail(
+  to: string,
+  ctx: QuotationEmailContext,
+): Promise<boolean> {
+  if (!isSmtpConfigured()) {
+    return false
+  }
+
+  const from =
+    process.env.SMTP_FROM ??
+    (process.env.SMTP_USER ? `DealFlow360 <${process.env.SMTP_USER}>` : 'DealFlow360 <noreply@dealflow360.local>')
+
+  try {
+    const transport = createSmtpTransport()
+    await transport.sendMail({
+      from,
+      to,
+      subject: `Quotation for ${ctx.customerName} — ${ctx.quoteRef}`,
+      text: buildQuotationEmailText(ctx),
+      html: buildQuotationEmailHtml(ctx),
+    })
+    console.log(`[portal] Quotation email sent to ${to}`)
+    return true
+  } catch (err) {
+    console.warn('[portal] Failed to send quotation email (falling back to console link):', err)
+    return false
+  }
+}
+
+/** @deprecated Use sendQuotationPortalEmail */
 export async function sendMagicLinkEmail(
   to: string,
   link: string,
-  quoteRef: string,
+  quoteSummary: string,
 ): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) {
-    return false
-  }
-
-  const from = process.env.RESEND_FROM_EMAIL ?? 'DealFlow360 <onboarding@resend.dev>'
-
-  try {
-    const { Resend } = await import('resend')
-    const resend = new Resend(apiKey)
-
-    const { error } = await resend.emails.send({
-      from,
-      to,
-      subject: `Access your quote — ${quoteRef}`,
-      html: `
-        <div style="font-family: Inter, Arial, sans-serif; max-width: 520px; margin: 0 auto; color: #1a1d21;">
-          <h2 style="color: #1565C0; margin-bottom: 8px;">DealFlow360 Customer Portal</h2>
-          <p>You requested access to review your quotation.</p>
-          <p><strong>Quote reference:</strong> ${quoteRef}</p>
-          <p style="margin: 24px 0;">
-            <a href="${link}" style="background: #1565C0; color: #fff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              View your quote
-            </a>
-          </p>
-          <p style="font-size: 13px; color: #6b7280;">This link expires in 2 hours and can only be used for this quote.</p>
-          <p style="font-size: 12px; color: #9ca3af;">If the button does not work, copy and paste this URL into your browser:<br>${link}</p>
-        </div>
-      `,
-    })
-
-    if (error) {
-      console.warn('[portal] Resend API error (magic link not sent):', error)
-      return false
-    }
-
-    console.log(`[portal] Magic link email sent to ${to}`)
-    return true
-  } catch (err) {
-    console.warn('[portal] Failed to send magic-link email (falling back to console link):', err)
-    return false
-  }
+  return sendQuotationPortalEmail(to, {
+    customerName: 'Customer',
+    lines: [],
+    totalAmount: 0,
+    validUntil: '—',
+    salesRepName: 'Sales Team',
+    companyName: process.env.COMPANY_NAME ?? 'DealFlow360',
+    phone: process.env.COMPANY_PHONE ?? '',
+    email: process.env.SMTP_USER ?? '',
+    portalLink: link,
+    quoteRef: quoteSummary,
+  })
 }

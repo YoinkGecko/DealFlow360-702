@@ -12,6 +12,8 @@ import {
   decideApproval,
   fetchChangeRequests,
   fetchCustomers,
+  fetchProducts,
+  createProduct,
   fetchQuotes,
   respondChangeRequest,
 } from '../../lib/quotes-api'
@@ -28,7 +30,8 @@ import {
 } from '../../lib/quote-utils'
 import { Pagination } from '../../components/ui/Pagination'
 import { Can } from '../../components/ui/Can'
-import { fetchProducts } from '../../lib/quotes-api'
+import { Modal } from '../../components/ui/Modal'
+import { Input } from '../../components/ui/Input'
 import type { ApiApproval, ApiChangeRequest, ApiCustomer, ApiProduct, ApiQuote } from '../../lib/types'
 import { DEFAULT_POLICY } from '../../lib/risk'
 import { formatCurrency, timeAgo } from '../../lib/utils'
@@ -381,18 +384,18 @@ export function CustomersPage() {
 
 
 export function ProductsPage() {
+  const { showToast } = useApp()
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageCount, setPageCount] = useState(1)
   const [total, setTotal] = useState(0)
+  const [showNew, setShowNew] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({ name: '', category: 'Hardware', unitPrice: '', description: '' })
 
-  useEffect(() => {
-    setPage(1)
-  }, [search])
-
-  useEffect(() => {
+  const loadProducts = () => {
     setLoading(true)
     fetchProducts({ page, limit: 20, search: search.trim() || undefined })
       .then((r) => {
@@ -402,14 +405,47 @@ export function ProductsPage() {
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  useEffect(() => {
+    loadProducts()
   }, [page, search])
+
+  const handleCreate = async () => {
+    const unitPrice = Number(form.unitPrice)
+    if (!form.name.trim() || !form.category.trim() || !unitPrice || unitPrice <= 0) {
+      showToast('Name, category, and a positive price are required')
+      return
+    }
+    setCreating(true)
+    try {
+      await createProduct({
+        name: form.name.trim(),
+        category: form.category.trim(),
+        unitPrice,
+        description: form.description.trim() || undefined,
+      })
+      showToast('Product created')
+      setShowNew(false)
+      setForm({ name: '', category: 'Hardware', unitPrice: '', description: '' })
+      loadProducts()
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Failed to create product')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="space-y-4 animate-in">
       <div className="flex justify-between items-center gap-3 flex-wrap">
         <h1 className="text-xl font-semibold">Products</h1>
         <Can action="product.create">
-          <Button size="sm" disabled title="Use Admin API or seed for new products">
+          <Button size="sm" onClick={() => setShowNew(true)}>
             + New Product
           </Button>
         </Can>
@@ -450,6 +486,46 @@ export function ProductsPage() {
           </div>
         </Card>
       )}
+
+      <Modal open={showNew} onClose={() => setShowNew(false)} title="New Product">
+        <div className="space-y-4">
+          <Input
+            label="Product name"
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="e.g. Laptop Pro 14"
+            required
+          />
+          <Input
+            label="Category"
+            value={form.category}
+            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+            placeholder="Hardware or Service"
+            required
+          />
+          <Input
+            label="Unit price (INR)"
+            type="number"
+            min={1}
+            value={form.unitPrice}
+            onChange={(e) => setForm((f) => ({ ...f, unitPrice: e.target.value }))}
+            placeholder="480000"
+            required
+          />
+          <Input
+            label="Description (optional)"
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Short product description"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? 'Creating…' : 'Create Product'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

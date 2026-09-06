@@ -12,6 +12,7 @@ import type {
   ApiStalledQuote,
   ApiSubscription,
   ApiWarehouse,
+  ApiNotification,
   PortalAccessResponse,
   QuoteStatus,
   PaginatedResponse,
@@ -132,6 +133,18 @@ export function fetchProducts(params?: { page?: number; limit?: number; search?:
   )
 }
 
+export function createProduct(body: {
+  name: string
+  category: string
+  unitPrice: number
+  description?: string
+}) {
+  return apiFetch<ApiProduct>('/products', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export function fetchRecommendations(productId: string) {
   return apiFetch<{ productId: string; recommendations: ApiRecommendation[] }>(
     `/products/${productId}/recommendations`,
@@ -220,4 +233,12 @@ export function fetchStalledQuotes() {
 
 export function sendQuoteToPortal(quoteId: string, customerEmail: string) {
   return sendQuoteToCustomer(quoteId, customerEmail)
+}
+
+export function fetchNotifications() {
+  return apiFetch<{ notifications: ApiNotification[] }>('/notifications')
+}
+
+export function markNotificationReadApi(id: string) {
+  return apiFetch<{ ok: true }>(`/notifications/${id}/read`, { method: 'PATCH' })
 }

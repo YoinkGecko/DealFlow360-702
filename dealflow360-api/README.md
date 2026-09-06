@@ -249,7 +249,7 @@ Event reactions (`src/core/event-handlers.ts`):
 1. Run Phase 1 flow to create + submit + approve a quote (or use an existing `APPROVED` quote)
 2. **POST /quotes/{id}/send** — status → `SENT`
 3. **POST /portal/request-access** — body: `{ "quoteId": "...", "customerEmail": "procurement@acmecorp.test" }`
-4. If `RESEND_API_KEY` is set, the magic link is emailed; otherwise copy `token` / `link` from the response (also logged in the API console)
+4. If `SMTP_*` is configured, the magic link is emailed; otherwise copy `token` / `link` from the response (also logged in the API console)
 5. **GET /portal/quotes/{token}** — customer read-only view
 6. **POST /portal/quotes/{token}/change-requests** — counter with high discount, e.g.:
    ```json
@@ -268,25 +268,29 @@ Event reactions (`src/core/event-handlers.ts`):
 | Portal | `POST /portal/request-access`, `GET /portal/quotes/:token`, change-requests, confirm | `computeBlendedRisk`, `routeForRiskScore`, `applyApprovalRouting`, `emitQuoteConfirmed` |
 | Quotes (extended) | `POST /quotes/:id/send`, change-request respond | Same approval routing refactor |
 
-### Portal magic-link email (Resend)
+### Portal magic-link email (Nodemailer SMTP)
 
 Set these in `.env` to send real emails from `POST /portal/request-access`:
 
 | Variable | Purpose |
 |----------|---------|
-| `RESEND_API_KEY` | API key from [resend.com](https://resend.com) (free tier works) |
-| `RESEND_FROM_EMAIL` | Verified sender, e.g. `DealFlow360 <onboarding@resend.dev>` |
-| `PORTAL_BASE_URL` | Base URL for the clickable link, e.g. `http://localhost:3000` |
+| `SMTP_HOST` | SMTP server hostname (e.g. `smtp.gmail.com` or Mailtrap) |
+| `SMTP_PORT` | SMTP port (default `587`) |
+| `SMTP_SECURE` | `true` for port 465, otherwise `false` |
+| `SMTP_USER` | SMTP username |
+| `SMTP_PASS` | SMTP password or app password |
+| `SMTP_FROM` | Sender address, e.g. `DealFlow360 <you@example.com>` |
+| `PORTAL_BASE_URL` | Frontend base URL for the clickable link, e.g. `http://localhost:5173` |
 
-Without `RESEND_API_KEY`, the flow still works end-to-end: the magic link is **logged to the API console** and returned in the JSON response (`token` + `link`) so Swagger testing never requires an inbox.
+Without `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`, the flow still works end-to-end: the magic link is **logged to the API console** and returned in the JSON response (`token` + `link`) so Swagger testing never requires an inbox.
 
 ## Architecture notes
 
 | Value | Behavior |
 |-------|----------|
-| `console` (default) | Prints emails in the API server terminal |
+| `console` (default) | Prints welcome emails in the API server terminal |
 | `ethereal` | Free test inbox — preview URL logged after each send |
-| `smtp` | Real SMTP — set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` in `.env` |
+| `smtp` | Real SMTP — set `SMTP_*` in `.env` for signup welcome email |
 
 Welcome email runs on signup. Failures are non-blocking in dev.
 

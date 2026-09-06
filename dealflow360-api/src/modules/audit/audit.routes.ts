@@ -81,7 +81,6 @@ export async function auditRoutes(app: FastifyInstance) {
               routing: z.array(z.string()),
             }),
             changed: z.boolean(),
-            replaySource: z.enum(['events', 'snapshot']).optional(),
             linesUsedInReplay: z.array(
               z.object({
                 lineId: z.string().uuid(),

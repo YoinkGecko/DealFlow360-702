@@ -11,7 +11,7 @@ import {
   changeRequestTypeSchema,
   respondChangeRequestBodySchema,
 } from '../../core/schemas.js'
-import { requireRoles } from '../../core/auth-middleware.js'
+import { getAuthUser, requireRoles } from '../../core/auth-middleware.js'
 import { handleRouteError } from '../../core/errors.js'
 import * as portalService from './portal.service.js'
 
@@ -57,7 +57,7 @@ export async function portalRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Portal'],
         description:
-          'Request customer portal access (Rep/Admin only). Sends magic-link email via Resend when configured; otherwise returns link in response.',
+          'Request customer portal access (Rep/Admin only). Sends magic-link email via SMTP when configured; otherwise returns link in response.',
         security: [{ bearerAuth: [] }],
         body: portalRequestAccessBodySchema,
         response: {
@@ -77,10 +77,12 @@ export async function portalRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const user = getAuthUser(request)
         const result = await portalService.requestPortalAccess(
           app,
           request.body.quoteId,
           request.body.customerEmail,
+          user.sub,
         )
         return result
       } catch (err) {

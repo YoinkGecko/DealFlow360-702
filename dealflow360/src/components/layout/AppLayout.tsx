@@ -258,7 +258,10 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 overflow-hidden">
               <div className="px-4 py-3 border-b border-[var(--color-border)] font-medium text-sm">Notifications</div>
               <div className="max-h-72 overflow-y-auto">
-                {notifications.map((n: { id: string; message: string; time: string; read: boolean }) => (
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-[var(--color-muted)] text-center">No notifications yet</p>
+                ) : (
+                  notifications.map((n) => (
                   <button
                     key={n.id}
                     type="button"
@@ -266,12 +269,19 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                       'w-full text-left px-4 py-3 text-sm border-b border-[var(--color-border)] hover:bg-[var(--color-table-header-bg)] transition-colors',
                       !n.read && 'bg-[var(--color-brand-light)]/30',
                     )}
-                    onClick={() => markNotificationRead(n.id)}
+                    onClick={() => {
+                      markNotificationRead(n.id)
+                      if (n.quoteId) {
+                        setShowNotifs(false)
+                        navigate(`/app/deals/${n.quoteId}`)
+                      }
+                    }}
                   >
                     <p className="text-[var(--color-text)]">{n.message}</p>
                     <p className="text-xs text-[var(--color-muted)] mt-0.5">{new Date(n.time).toLocaleTimeString()}</p>
                   </button>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
