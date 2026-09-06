@@ -1,6 +1,7 @@
 import type { Approval } from '@prisma/client'
 import { prisma } from '../../db/client.js'
 import { appendEvent } from '../../core/event-store.js'
+import { notifyApproversForQuote } from '../notifications/notifications.service.js'
 import { resolveApprovalChain } from './policy.service.js'
 
 /**
@@ -87,6 +88,12 @@ export async function applyApprovalRouting(
     where: { id: quoteId },
     data: { status: 'PENDING_APPROVAL' },
   })
+
+  await notifyApproversForQuote(
+    quoteId,
+    requiredApprovers,
+    options.approvalEventType === 'QuoteReenteredApproval' ? 'reentered' : 'submitted',
+  )
 
   return { quote: updated, autoApproved: false, approvals }
 }

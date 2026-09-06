@@ -240,5 +240,16 @@ export function fetchNotifications() {
 }
 
 export function markNotificationReadApi(id: string) {
-  return apiFetch<{ ok: true }>(`/notifications/${id}/read`, { method: 'PATCH' })
+  return apiFetch<{ ok: true }>(`/notifications/${id}/read`, {
+    method: 'PATCH',
+    body: '{}',
+  })
+}
+
+export function dismissNotificationApi(id: string) {
+  return apiFetch<{ ok: true }>(`/notifications/${id}`, { method: 'DELETE' })
+}
+
+export function clearNotificationsApi() {
+  return apiFetch<{ ok: true }>('/notifications', { method: 'DELETE' })
 }

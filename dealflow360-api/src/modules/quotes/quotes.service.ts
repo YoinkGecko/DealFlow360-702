@@ -8,6 +8,7 @@ import {
 } from '../policy/policy.service.js'
 import { applyApprovalRouting } from '../policy/approval-routing.js'
 import { getProductById } from '../catalog/catalog.service.js'
+import { notifyApproversForQuote } from '../notifications/notifications.service.js'
 
 function decimalToNumber(value: { toNumber(): number } | number): number {
   return typeof value === 'number' ? value : value.toNumber()
@@ -340,6 +341,18 @@ export async function decideApproval(
   const pending = await prisma.approval.count({
     where: { quoteId, decision: 'PENDING' },
   })
+
+  if (pending > 0 && data.decision === 'APPROVED') {
+    const stillPending = await prisma.approval.findMany({
+      where: { quoteId, decision: 'PENDING' },
+      select: { approverRole: true },
+    })
+    await notifyApproversForQuote(
+      quoteId,
+      stillPending.map((a) => a.approverRole),
+      'next_in_chain',
+    )
+  }
 
   if (pending === 0) {
     await prisma.quote.update({

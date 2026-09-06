@@ -59,4 +59,43 @@ export async function notificationsRoutes(app: FastifyInstance) {
       }
     },
   )
+
+  server.delete(
+    '/notifications',
+    {
+      onRequest: [app.authenticate],
+      schema: {
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        response: { 200: z.object({ ok: z.literal(true) }) },
+      },
+    },
+    async (request) => {
+      const user = getAuthUser(request)
+      await notificationsService.clearNotificationsForUser(user.sub)
+      return { ok: true as const }
+    },
+  )
+
+  server.delete(
+    '/notifications/:id',
+    {
+      onRequest: [app.authenticate],
+      schema: {
+        tags: ['Notifications'],
+        security: [{ bearerAuth: [] }],
+        params: z.object({ id: z.string().uuid() }),
+        response: { 200: z.object({ ok: z.literal(true) }), 404: errorSchema },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const user = getAuthUser(request)
+        await notificationsService.deleteNotification(user.sub, request.params.id)
+        return { ok: true as const }
+      } catch (err) {
+        return handleRouteError(reply, err)
+      }
+    },
+  )
 }

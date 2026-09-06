@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { fetchNotifications, markNotificationReadApi } from '../lib/quotes-api'
+import { fetchNotifications, markNotificationReadApi, dismissNotificationApi, clearNotificationsApi } from '../lib/quotes-api'
 import type { ApiNotification } from '../lib/types'
 import { useAuth } from './AuthContext'
 import type { AppUser } from './AuthContext'
@@ -19,6 +19,8 @@ interface AppState {
   toast: string | null
   showToast: (msg: string) => void
   markNotificationRead: (id: string) => void
+  dismissNotification: (id: string) => void
+  dismissAllNotifications: () => void
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -62,6 +64,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [refreshNotifications],
   )
 
+  const dismissNotification = useCallback(
+    async (id: string) => {
+      try {
+        await dismissNotificationApi(id)
+        setNotifications((n) => n.filter((x) => x.id !== id))
+      } catch {
+        void refreshNotifications()
+        showToast('Could not dismiss notification')
+      }
+    },
+    [refreshNotifications, showToast],
+  )
+
+  const dismissAllNotifications = useCallback(async () => {
+    if (notifications.length === 0) return
+    try {
+      await clearNotificationsApi()
+      setNotifications([])
+    } catch {
+      void refreshNotifications()
+      showToast('Could not clear notifications')
+    }
+  }, [notifications.length, refreshNotifications, showToast])
+
   const value = useMemo(
     () => ({
       user,
@@ -70,8 +96,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast,
       showToast,
       markNotificationRead,
+      dismissNotification,
+      dismissAllNotifications,
     }),
-    [user, notifications, refreshNotifications, toast, showToast, markNotificationRead],
+    [
+      user,
+      notifications,
+      refreshNotifications,
+      toast,
+      showToast,
+      markNotificationRead,
+      dismissNotification,
+      dismissAllNotifications,
+    ],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

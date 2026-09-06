@@ -166,7 +166,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const navigate = useNavigate()
   const { logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { user, notifications, markNotificationRead } = useApp()
+  const { user, notifications, markNotificationRead, dismissNotification, dismissAllNotifications } = useApp()
   const [showNotifs, setShowNotifs] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -256,31 +256,61 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           </button>
           {showNotifs && (
             <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-[var(--color-border)] font-medium text-sm">Notifications</div>
+              <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between gap-2">
+                <span className="font-medium text-sm">Notifications</span>
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs text-[var(--color-brand)] hover:underline"
+                    onClick={dismissAllNotifications}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
               <div className="max-h-72 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-[var(--color-muted)] text-center">No notifications yet</p>
                 ) : (
                   notifications.map((n) => (
-                  <button
+                  <div
                     key={n.id}
-                    type="button"
                     className={cn(
-                      'w-full text-left px-4 py-3 text-sm border-b border-[var(--color-border)] hover:bg-[var(--color-table-header-bg)] transition-colors',
+                      'flex items-start border-b border-[var(--color-border)]',
                       !n.read && 'bg-[var(--color-brand-light)]/30',
                     )}
-                    onClick={() => {
-                      markNotificationRead(n.id)
-                      if (n.quoteId) {
-                        setShowNotifs(false)
-                        const tab = /submitted a|change request/i.test(n.message) ? 'changes' : 'quote'
-                        navigate(`/app/deals/${n.quoteId}${tab === 'quote' ? '' : `?tab=${tab}`}`)
-                      }
-                    }}
                   >
-                    <p className="text-[var(--color-text)]">{n.message}</p>
-                    <p className="text-xs text-[var(--color-muted)] mt-0.5">{new Date(n.time).toLocaleTimeString()}</p>
-                  </button>
+                    <button
+                      type="button"
+                      className="flex-1 min-w-0 text-left px-4 py-3 text-sm hover:bg-[var(--color-table-header-bg)] transition-colors"
+                      onClick={() => {
+                        markNotificationRead(n.id)
+                        if (n.quoteId) {
+                          setShowNotifs(false)
+                          const isApproval = /approval|requires your/i.test(n.message)
+                          const isChange = /submitted a|change request/i.test(n.message)
+                          if (isApproval) {
+                            navigate('/app/approvals')
+                          } else if (isChange) {
+                            navigate(`/app/deals/${n.quoteId}?tab=changes`)
+                          } else {
+                            navigate(`/app/deals/${n.quoteId}`)
+                          }
+                        }
+                      }}
+                    >
+                      <p className="text-[var(--color-text)]">{n.message}</p>
+                      <p className="text-xs text-[var(--color-muted)] mt-0.5">{new Date(n.time).toLocaleTimeString()}</p>
+                    </button>
+                    <button
+                      type="button"
+                      className="p-2 m-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg)] shrink-0"
+                      aria-label="Dismiss notification"
+                      onClick={() => dismissNotification(n.id)}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                   ))
                 )}
               </div>

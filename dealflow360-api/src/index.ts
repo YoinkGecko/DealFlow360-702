@@ -41,7 +41,11 @@ async function buildServer() {
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
 
-  await app.register(cors, { origin: true })
+  await app.register(cors, {
+    origin: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
 
   await app.register(jwt, {
     secret: process.env.JWT_SECRET ?? 'dev-secret-change-me',
