@@ -1,0 +1,14 @@
+# Ignore node_modules folder (for Node/React projects)
+node_modules/
+
+# Ignore environment variables / secrets
+.env
+.env.local
+
+# Ignore OS-generated files
+.DS_Store
+
+
+# Ignore build outputs
+/dist
+/build
